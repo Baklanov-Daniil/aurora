@@ -16,6 +16,31 @@
 
 ## СТРУКТУРА ПРОЕКТА
 
+MyFirstApp/
+├── ru.template.MyFirstApp.pro        ← файл проекта qmake
+
+├── ru.template.MyFirstApp.desktop    ← параметры запуска и разрешения
+
+├── icons/                            ← иконки приложения (86x86 – 172x172)
+
+├── qml/
+
+│   ├── MyFirstApp.qml                ← корневой файл: окно приложения
+
+│   ├── cover/DefaultCoverPage.qml    ← обложка (вид в меню)
+
+│   └── pages/MainPage.qml            ← первая страница
+
+├── rpm/
+
+│   └── ru.template.MyFirstApp.spec   ← сценарий сборки RPM-пакета
+
+├── translations/                     ← файлы переводов
+
+└── src/
+
+│    └── main.cpp                      ← точка входа C++
+
 ![alt text](image.png)
 
 ## КРИТИЧЕСКИЕ ПРАВИЛА
