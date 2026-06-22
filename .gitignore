@@ -1,0 +1,13 @@
+.DS_Store
+.molecule
+*.retry
+.cache
+*.log
+.idea
+*.iml
+ansible-galaxy-*
+ansible-role-*
+*.pem
+/src/openrcdev.sh
+/src/aurorarc.sh
+/src/setup.retry
