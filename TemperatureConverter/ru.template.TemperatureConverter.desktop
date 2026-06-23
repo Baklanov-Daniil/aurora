@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=ru.template.TemperatureConverter
+Exec=/usr/bin/ru.template.TemperatureConverter
+Name=TemperatureConverter
+Name[ru]=Калькулятор температур
+
+[X-Application]
+Permissions=
+OrganizationName=ru.template
+ApplicationName=TemperatureConverter
+ExecDBus=/usr/bin/ru.template.TemperatureConverter

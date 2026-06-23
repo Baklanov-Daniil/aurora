@@ -1,17 +1,14 @@
-// SPDX-FileCopyrightText: 2024 Open Mobile Platform LLC <community@omp.ru>
-// SPDX-License-Identifier: BSD-3-Clause
-
 #include <QtQuick>
 #include <auroraapp.h>
 
 int main(int argc, char *argv[])
 {
     QScopedPointer<QGuiApplication> application(Aurora::Application::application(argc, argv));
-    application->setOrganizationName(QStringLiteral("ru.auroraos"));
-    application->setApplicationName(QStringLiteral("ApplicationTemplate"));
+    application->setOrganizationName(QStringLiteral("ru.template"));
+    application->setApplicationName(QStringLiteral("TemperatureConverter"));
 
     QScopedPointer<QQuickView> view(Aurora::Application::createView());
-    view->setSource(Aurora::Application::pathTo(QStringLiteral("qml/ApplicationTemplate.qml")));
+    view->setSource(Aurora::Application::pathTo(QStringLiteral("qml/TemperatureConverter.qml")));
     view->show();
 
     return application->exec();

@@ -1,10 +1,9 @@
-Name:       ru.auroraos.ApplicationTemplate
-Summary:    Template
+Name:       ru.template.TemperatureConverter
+Summary:    Моё приложения для ОС Аврора
 Version:    0.1
 Release:    1
-Group:      Qt/Qt
 License:    BSD-3-Clause
-URL:        https://developer.auroraos.ru/open-source
+URL:        https://auroraos.ru
 Source0:    %{name}-%{version}.tar.bz2
 
 Requires:   sailfishsilica-qt5 >= 0.10.9
@@ -14,7 +13,7 @@ BuildRequires:  pkgconfig(Qt5Qml)
 BuildRequires:  pkgconfig(Qt5Quick)
 
 %description
-Aurora OS Application Template.
+Короткое описание моего приложения для ОС Аврора
 
 %prep
 %autosetup
