@@ -7,7 +7,7 @@ CoverBackground {
     CoverTemplate {
         objectName: "applicationCover"
         primaryText: "App"
-        secondaryText: qsTr("TemperatureConverter")
+        secondaryText: qsTr("Temperature converter")
         icon {
             source: Qt.resolvedUrl("../icons/TemperatureConverter.svg")
             sourceSize { width: icon.width; height: icon.height }

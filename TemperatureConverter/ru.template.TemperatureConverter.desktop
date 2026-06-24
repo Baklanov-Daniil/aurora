@@ -3,8 +3,8 @@ Type=Application
 X-Nemo-Application-Type=silica-qt5
 Icon=ru.template.TemperatureConverter
 Exec=/usr/bin/ru.template.TemperatureConverter
-Name=TemperatureConverter
-Name[ru]=Калькулятор температур
+Name=Temperature converter
+Name[ru]=Конвертер температур
 
 [X-Application]
 Permissions=
