@@ -11,3 +11,7 @@ ansible-role-*
 /src/openrcdev.sh
 /src/aurorarc.sh
 /src/setup.retry
+*.pro.user
+*.pro.user.*
+build/
+*.autosaver/
