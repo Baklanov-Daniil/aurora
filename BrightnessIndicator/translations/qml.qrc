@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../qml/BrightnessIndicator.qml</file>
+        <file>../qml/pages/MainPage.qml</file>
+        <file>../qml/pages/AboutPage.qml</file>
+        <file>../qml/cover/DefaultCoverPage.qml</file>
+        <file>../qml/icons/BrightnessIndicator.svg</file>
+    </qresource>
+</RCC>

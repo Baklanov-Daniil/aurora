@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=ru.template.BrightnessIndicator
+Exec=/usr/bin/ru.template.BrightnessIndicator
+Name=Brightness indicator
+Name[ru]=Индикатор яркости
+
+[X-Application]
+Permissions=Pictures
+OrganizationName=ru.template
+ApplicationName=BrightnessIndicator
+ExecDBus=/usr/bin/ru.template.BrightnessIndicator
