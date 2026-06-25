@@ -96,5 +96,10 @@
         <source>Время обработки: %1 мс</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../qml/pages/MainPage.qml" line="99"/>
+        <source>Выберите изображение</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 </TS>

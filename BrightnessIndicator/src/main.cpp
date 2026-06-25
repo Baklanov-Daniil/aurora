@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
         QStringLiteral("imageProcessor"), &processor);
 
     view->setSource(Aurora::Application::pathTo(
-        QStringLiteral("qml/ImageLab.qml")));
+        QStringLiteral("qml/BrightnessIndicator.qml")));
     view->show();
 
     return application->exec();

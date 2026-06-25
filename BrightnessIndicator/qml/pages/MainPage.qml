@@ -96,8 +96,11 @@ Page {
     Component {
         id: imagePickerComponent
         ImagePickerPage {
+            title: qsTr("Выберите изображение")
+
             onSelectedContentPropertiesChanged: {
                 page.selectedPath = selectedContentProperties.filePath
+                console.log("Выбран файл:", selectedContentProperties.filePath)
             }
         }
     }
