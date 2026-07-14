@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=ru.omstu.goloslov
+Exec=/usr/bin/ru.omstu.goloslov
+Name=Goloslov
+Name[ru]=Голослов
+
+[X-Application]
+Permissions=Microphone;Audio
+OrganizationName=ru.omstu
+ApplicationName=goloslov
+ExecDBus=/usr/bin/ru.omstu.goloslov
