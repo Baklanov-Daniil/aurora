@@ -1,6 +1,7 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import ru.omstu.goloslov 1.0
+import QtGraphicalEffects 1.0
 import "../Database.js" as Db
 
 Page {
@@ -9,9 +10,9 @@ Page {
     allowedOrientations: Orientation.All
 
     property bool modelLoaded: false
-    property bool isRecording: false
+    property bool isRecording: SpeechRecognizer.recording
 
-    // --- (все функции без изменений) ---
+    // --- Multi-selection state ---
     property bool selectionMode: false
     property var selectedIds: []
     property bool allSelected: false
@@ -60,7 +61,7 @@ Page {
 
     function deleteSelected() {
         if (selectedIds.length === 0) return
-        remorseDelete.execute(notesListView, qsTr("Удаление заметок"), function() {
+        remorseDelete.execute(notesListView, qsTr("Удаление записей"), function() {
             Db.deleteNotes(selectedIds)
             exitSelectionMode()
             reloadNotes()
@@ -73,9 +74,7 @@ Page {
         for (var j = 0; j < filteredModel.count; j++) {
             var note = filteredModel.get(j)
             if (note.noteId === noteId) {
-                renameDialog.noteId = noteId
-                renameDialog.nameField.text = note.title
-                renameDialog.open()
+                renameDialogComponent.createObject(mainPage, { "noteId": noteId }).open()
                 return
             }
         }
@@ -103,7 +102,8 @@ Page {
     }
 
     function reloadNotes() {
-        Db.loadNotes(notesModel)
+        // Возвращаем сортировку по умолчанию, так как Database.js её ожидает
+        Db.loadNotes(notesModel, "date", "desc")
         filterNotes(searchField.text)
     }
 
@@ -122,34 +122,36 @@ Page {
         onFinished: reloadNotes()
     }
 
-    // --- Диалог переименования ---
-    Dialog {
-        id: renameDialog
-        property int noteId: -1
-        Column {
-            width: parent.width
-            spacing: Theme.paddingMedium
-            DialogHeader { title: qsTr("Переименовать запись") }
-            TextField {
-                id: nameField
+    // --- Rename dialog component (исправлен дубликат id) ---
+    Component {
+        id: renameDialogComponent
+        Dialog {
+            property int noteId: -1
+            Column {
                 width: parent.width
-                placeholderText: qsTr("Название записи")
+                spacing: Theme.paddingMedium
+                DialogHeader { title: qsTr("Переименовать запись") }
+                TextField {
+                    id: nameField
+                    width: parent.width
+                    placeholderText: qsTr("Название записи")
+                }
             }
-        }
-        onAccepted: {
-            if (nameField.text.trim().length > 0 && noteId >= 0) {
-                Db.updateNoteTitle(noteId, nameField.text.trim())
-                exitSelectionMode()
-                reloadNotes()
+            onAccepted: {
+                if (nameField.text.trim().length > 0 && noteId >= 0) {
+                    Db.updateNoteTitle(noteId, nameField.text.trim())
+                    exitSelectionMode()
+                    reloadNotes()
+                }
             }
         }
     }
 
-    // --- Заголовок с градиентом (жёлто-оранжевый) ---
+    // --- Заголовок с градиентом ---
     Rectangle {
         id: normalHeader
-        anchors { top: parent.top; left: parent.left; right: parent.right }
-        height: Theme.itemSizeMedium
+        anchors {top: parent.top; left: parent.left; right: parent.right;}
+        height: Theme.itemSizeSmall
         visible: !selectionMode
         z: 10
         gradient: Gradient {
@@ -157,30 +159,19 @@ Page {
             GradientStop { position: 1.0; color: "#FF8F00" }
         }
 
-        MouseArea { anchors.fill: parent }
-
-        Label {
-            anchors.centerIn: parent
-            text: qsTr("Голосовой блокнот")
-            color: "white"
-            font.pixelSize: Theme.fontSizeMedium
-            font.weight: Font.DemiBold
-            font.capitalization: Font.AllUppercase
-        }
-
         IconButton {
             objectName: "aboutButton"
             anchors { right: parent.right; rightMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
             icon.source: "image://theme/icon-m-about"
-            icon.color: "white"
+            // icon.color удален, используется дефолтный белый для хедера
             onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
         }
     }
 
-    // --- Режим множественного выбора (такой же заголовок) ---
+    // --- Режим множественного выбора ---
     Rectangle {
         id: selectionHeader
-        anchors { top: parent.top; left: parent.left; right: parent.right }
+        anchors { top: parent.top; topMargin: Theme.paddingSmall ; left: parent.left; right: parent.right }
         height: Theme.itemSizeMedium
         visible: selectionMode
         z: 10
@@ -189,13 +180,10 @@ Page {
             GradientStop { position: 1.0; color: "#FF8F00" }
         }
 
-        MouseArea { anchors.fill: parent }
-
         IconButton {
             id: exitSelectionButton
             anchors { left: parent.left; leftMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
             icon.source: "image://theme/icon-m-close"
-            icon.color: "white"
             onClicked: exitSelectionMode()
         }
 
@@ -227,7 +215,6 @@ Page {
                 anchors.fill: parent
                 source: "image://theme/icon-m-acknowledge"
                 visible: allSelected
-                color: "white"
             }
 
             MouseArea {
@@ -237,7 +224,7 @@ Page {
         }
     }
 
-    // --- Список ---
+    // --- Основной контент ---
     SilicaFlickable {
         id: flickable
         anchors {
@@ -279,12 +266,11 @@ Page {
                         width: parent.width
                         indeterminate: true
                         visible: !modelLoaded
-                        color: "#FFB300"
                     }
                 }
             }
 
-            // Индикатор записи (жёлто-оранжевый)
+            // Индикатор активной записи
             Item {
                 width: parent.width
                 height: isRecording ? recordingBar.height + Theme.paddingSmall : 0
@@ -324,13 +310,14 @@ Page {
                 }
             }
 
-            SearchField {
+            // Поле поиска (замена SearchField на TextField)
+            TextField {
                 id: searchField
                 width: parent.width
                 placeholderText: qsTr("Поиск по записям...")
                 visible: false
                 onTextChanged: filterNotes(text)
-                color: Theme.primaryColor
+                // Убран color: Theme.primaryColor, чтобы работала тема Silica
             }
 
             SilicaListView {
@@ -343,7 +330,6 @@ Page {
                 header: headerComponent
 
                 PullDownMenu {
-                    id: pullDownMenu
                     MenuItem {
                         text: qsTr("О программе")
                         onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
@@ -363,7 +349,7 @@ Page {
         VerticalScrollDecorator {}
     }
 
-    // Нижняя панель
+    // Нижняя панель действий
     Rectangle {
         id: bottomBar
         anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -371,8 +357,6 @@ Page {
         color: "transparent"
         visible: selectionMode
         z: 10
-
-        MouseArea { anchors.fill: parent }
 
         Rectangle {
             anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -389,7 +373,6 @@ Page {
                 id: renameButton
                 anchors.verticalCenter: parent.verticalCenter
                 icon.source: "image://theme/icon-m-edit"
-                icon.color: Theme.highlightColor
                 enabled: selectedIds.length === 1
                 opacity: enabled ? 1.0 : 0.4
                 onClicked: renameSelected()
@@ -399,7 +382,6 @@ Page {
                 id: deleteButton
                 anchors.verticalCenter: parent.verticalCenter
                 icon.source: "image://theme/icon-m-delete"
-                icon.color: Theme.highlightColor
                 enabled: selectedIds.length > 0
                 opacity: enabled ? 1.0 : 0.4
                 onClicked: deleteSelected()
@@ -424,13 +406,6 @@ Page {
             height: noteColumn.height + 2 * Theme.paddingMedium
             RemorseItem { id: remorse }
 
-            function removeNote() {
-                remorse.execute(delegateItem, qsTr("Удаление записи"), function() {
-                    Db.deleteNote(noteId)
-                    reloadNotes()
-                })
-            }
-
             Item {
                 id: checkBox
                 anchors {
@@ -445,7 +420,6 @@ Page {
                     anchors.fill: parent
                     source: "image://theme/icon-m-play"
                     visible: !mainPage.selectionMode
-                    color: Theme.highlightColor
                 }
 
                 Rectangle {
@@ -462,7 +436,6 @@ Page {
                     anchors.fill: parent
                     source: "image://theme/icon-m-acknowledge"
                     visible: mainPage.selectionMode && isSelected(noteId)
-                    color: Theme.highlightColor
                 }
 
                 MouseArea {
@@ -471,7 +444,7 @@ Page {
                         if (mainPage.selectionMode) {
                             mainPage.toggleSelection(noteId)
                         } else {
-                            console.log("Playback: note", noteId)
+                            // Воспроизведение можно добавить позже
                         }
                     }
                 }
@@ -523,7 +496,7 @@ Page {
 
     Label { id: emptyLabel; visible: false }
 
-    // Плавающая кнопка записи (градиентная, с тенью)
+    // Плавающая кнопка записи
     Rectangle {
         id: recordButton
         anchors {
@@ -537,6 +510,9 @@ Page {
             GradientStop { position: 1.0; color: "#FF8F00" }
         }
         visible: !selectionMode
+
+        // Исправление: добавлен импорт QtGraphicalEffects в начало файла
+        // и корректное использование DropShadow
         layer.enabled: true
         layer.effect: DropShadow {
             color: "#80000000"
@@ -551,7 +527,6 @@ Page {
             icon.source: "image://theme/icon-m-mic"
             icon.width: Theme.iconSizeMedium
             icon.height: Theme.iconSizeMedium
-            icon.color: "white"
             width: parent.width
             height: parent.height
             onClicked: pageStack.push(Qt.resolvedUrl("RecordingPage.qml"))

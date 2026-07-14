@@ -192,23 +192,41 @@ Page {
                     }
                 }
 
+                Component {
+                    id: recordingGradient
+                    Gradient {
+                        GradientStop { position: 0.0; color: "#FF5722" }
+                        GradientStop { position: 1.0; color: "#E64A19" }
+                    }
+                }
+
+                Component {
+                    id: readyGradient
+                    Gradient {
+                        GradientStop { position: 0.0; color: "#FFB300" }
+                        GradientStop { position: 1.0; color: "#FF8F00" }
+                    }
+                }
+
+                // В самом Rectangle используйте привязку через Loader или просто меняйте gradient
                 Rectangle {
                     width: Theme.itemSizeExtraLarge * 1.2
                     height: Theme.itemSizeExtraLarge * 1.2
                     radius: width / 2
-                    gradient: SpeechRecognizer.recording ?
-                        Gradient { GradientStop { position: 0.0; color: "#FF5722" }; GradientStop { position: 1.0; color: "#E64A19" } } :
-                        Gradient { GradientStop { position: 0.0; color: "#FFB300" }; GradientStop { position: 1.0; color: "#FF8F00" } }
+
+                    // Привязываем gradient к нужному компоненту
+                    gradient: SpeechRecognizer.recording ? recordingGradient.createObject(parent)
+                                                         : readyGradient.createObject(parent)
+
                     opacity: (SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing) ? 1.0 : 0.4
                     visible: !SpeechRecognizer.finalizing
 
                     IconButton {
                         anchors.centerIn: parent
                         icon.source: SpeechRecognizer.recording ? "image://theme/icon-m-stop"
-                                                           : "image://theme/icon-m-mic"
+                                                               : "image://theme/icon-m-mic"
                         icon.width: Theme.iconSizeLarge
                         icon.height: Theme.iconSizeLarge
-                        icon.color: "white"
                         width: parent.width
                         height: parent.height
                         enabled: SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing
@@ -264,7 +282,6 @@ Page {
                         width: parent.width
                         indeterminate: true
                         visible: SpeechRecognizer.finalizing
-                        color: "#FFB300"
                     }
 
                     Item { width: 1; height: Theme.paddingSmall }

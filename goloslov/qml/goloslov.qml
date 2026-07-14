@@ -10,15 +10,6 @@ ApplicationWindow {
     cover: Qt.resolvedUrl("cover/DefaultCoverPage.qml")
     allowedOrientations: defaultAllowedOrientations
 
-    // ---- Новая цветовая схема в стиле иконки ----
-    palette {
-        highlightColor: "#FFB300"      // жёлто-оранжевый (акцент)
-        primaryColor: "#FFFFFF"        // белый для основного текста
-        secondaryColor: "#A0B4C8"      // светло-серо-синий
-        background: "#0D1B2A"          // тёмно-синий фон
-        buttonColor: "#1B2D45"         // тёмно-синий для кнопок
-    }
-
     property int lastNoteId: 0
     property var mainPage: null
     property var coverPage: null
