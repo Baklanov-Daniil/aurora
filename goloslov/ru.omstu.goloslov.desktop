@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=ru.omstu.goloslov
+Exec=/usr/bin/ru.omstu.goloslov
+Name=Goloslov
+Name[ru]=Голослов
+ExecDBus=/usr/bin/ru.omstu.goloslov
+
+[X-Sailjail]
+Sandboxing=Disabled
+OrganizationName=ru.omstu
+ApplicationName=goloslov
+
+[X-Application]
+Permissions=Audio;Microphone;UserDirs
+OrganizationName=ru.omstu
+ApplicationName=goloslov
+ExecDBus=/usr/bin/ru.omstu.goloslov

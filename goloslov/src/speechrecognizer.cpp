@@ -24,14 +24,14 @@ const int kChannels = 1;
 
 SpeechRecognizer::SpeechRecognizer(QObject *parent)
     : QObject(parent)
-    , m_modelPath(QStringLiteral("/usr/share/goloslov_icon/models/vosk-model-small-ru-0.22"))
+    , m_modelPath(QStringLiteral("/usr/share/ru.omstu.voicenotes/models/vosk-model-small-ru-0.22"))
     , m_sampleRate(kSampleRate)
     , m_modelReady(false)
     , m_loading(false)
     , m_recording(false)
-    , m_finalizing(false)
-    , m_paused(false)
-    , m_level(0.0)
+        , m_finalizing(false)
+        , m_paused(false)
+        , m_level(0.0)
     , m_durationSec(0)
     , m_cancelled(false)
     , m_audioInput(nullptr)
@@ -39,6 +39,9 @@ SpeechRecognizer::SpeechRecognizer(QObject *parent)
     , m_gotAudio(false)
     , m_worker(new VoskWorker)
 {
+    // If capture starts but no samples ever arrive (typical on the Aurora
+    // emulator, which has no real microphone), surface an error instead of
+    // leaving the UI stuck at 00:00 forever.
     m_noAudioTimer.setSingleShot(true);
     m_noAudioTimer.setInterval(4000);
     connect(&m_noAudioTimer, &QTimer::timeout, this, &SpeechRecognizer::onNoAudioTimeout);
@@ -232,6 +235,7 @@ void SpeechRecognizer::onAudioDataReady()
     m_noAudioTimer.stop();
     m_pcm.append(data);
 
+    // Compute an RMS level for the meter and update duration.
     const int sampleCount = data.size() / 2;
     if (sampleCount > 0) {
         const qint16 *samples = reinterpret_cast<const qint16 *>(data.constData());
@@ -241,6 +245,7 @@ void SpeechRecognizer::onAudioDataReady()
             sumSquares += s * s;
         }
         const qreal rms = qSqrt(sumSquares / sampleCount);
+        // Scale up a little so normal speech fills the meter.
         setLevel(qBound<qreal>(0.0, rms * 3.0, 1.0));
     }
 
@@ -259,6 +264,7 @@ void SpeechRecognizer::onNoAudioTimeout()
     if (!m_recording || m_gotAudio) {
         return;
     }
+    // No PCM ever arrived from the input device.
     m_cancelled = true;
     teardownAudio();
     setRecording(false);
@@ -279,7 +285,8 @@ void SpeechRecognizer::stop()
         return;
     }
     m_noAudioTimer.stop();
-    setPaused(false);
+        setPaused(false);
+        // Grab any bytes still buffered before tearing the input down.
     if (m_audioIo) {
         const QByteArray tail = m_audioIo->readAll();
         if (!tail.isEmpty()) {
@@ -291,6 +298,7 @@ void SpeechRecognizer::stop()
     setRecording(false);
     setLevel(0.0);
     setFinalizing(true);
+    // Runs after all queued feed() calls on the worker thread.
     emit requestFinalize();
 }
 
@@ -310,6 +318,7 @@ void SpeechRecognizer::cancel()
     m_fullText.clear();
     emit fullTextChanged();
     if (m_finalizing) {
+        // A finalize is already in flight; onFinalUtterance will honour the flag.
         return;
     }
     setFinalizing(true);
@@ -380,7 +389,7 @@ QString SpeechRecognizer::writeWav(const QByteArray &pcm) const
 {
     QString dirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (dirPath.isEmpty()) {
-        dirPath = QDir::homePath() + QStringLiteral("/.local/share/goloslov_icon");
+        dirPath = QDir::homePath() + QStringLiteral("/.local/share/ru.omstu.voicenotes");
     }
     dirPath += QStringLiteral("/audio");
     QDir dir;
@@ -389,7 +398,7 @@ QString SpeechRecognizer::writeWav(const QByteArray &pcm) const
     }
 
     const QString fileName = QStringLiteral("note_%1.wav")
-                                 .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss")));
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss")));
     const QString fullPath = dirPath + QLatin1Char('/') + fileName;
 
     QFile file(fullPath);
@@ -412,8 +421,8 @@ QString SpeechRecognizer::writeWav(const QByteArray &pcm) const
     out << riffSize;
     file.write("WAVE", 4);
     file.write("fmt ", 4);
-    out << quint32(16);
-    out << quint16(1);
+    out << quint32(16);            // PCM fmt chunk size
+    out << quint16(1);             // audio format = PCM
     out << channels;
     out << sampleRate;
     out << byteRate;
@@ -430,6 +439,7 @@ QString SpeechRecognizer::writeWav(const QByteArray &pcm) const
 bool SpeechRecognizer::saveTextToFile(const QString &filePath, const QString &text)
 {
     QString localPath = filePath;
+    // Handle file:// URLs
     if (localPath.startsWith(QLatin1String("file://"))) {
         QUrl url(localPath);
         localPath = url.toLocalFile();
@@ -445,4 +455,18 @@ bool SpeechRecognizer::saveTextToFile(const QString &filePath, const QString &te
     stream << text;
     file.close();
     return true;
+}
+
+int SpeechRecognizer::fileSize(const QString &path) const
+{
+    QString localPath = path;
+    if (localPath.startsWith(QLatin1String("file://"))) {
+        QUrl url(localPath);
+        localPath = url.toLocalFile();
+    }
+    QFile f(localPath);
+    if (!f.exists()) {
+        return 0;
+    }
+    return static_cast<int>(f.size());
 }

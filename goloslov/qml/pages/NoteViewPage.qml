@@ -1,7 +1,8 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
 import QtMultimedia 5.6
-import ru.omstu.goloslov_icon 1.0
+import Nemo.Notifications 1.0
+import ru.omstu.goloslov 1.0
 import "../Database.js" as Db
 
 Page {
@@ -25,7 +26,9 @@ Page {
 
     function sanitizeFileName(name) {
         var clean = name.replace(/[^0-9A-Za-zА-Яа-яЁё _-]/g, "_")
-        if (clean.length === 0) clean = "note"
+        if (clean.length === 0) {
+            clean = "note"
+        }
         return clean
     }
 
@@ -39,18 +42,21 @@ Page {
 
             var ok = SpeechRecognizer.saveTextToFile("file://" + fullPath, content)
             if (ok) {
-                customBanner.show(qsTr("Текст сохранён: %1").arg(fullPath))
+                notificationPanel.previewBody = qsTr("Текст сохранён: %1").arg(fullPath)
             } else {
-                customBanner.show(qsTr("Не удалось сохранить файл"))
+                notificationPanel.previewBody = qsTr("Не удалось сохранить файл")
             }
+            notificationPanel.publish()
         } catch (e) {
-            customBanner.show(qsTr("Не удалось сохранить файл"))
+            notificationPanel.previewBody = qsTr("Не удалось сохранить файл")
+            notificationPanel.publish()
         }
     }
 
     function copyToClipboard() {
         Clipboard.text = noteText
-        customBanner.show(qsTr("Текст скопирован в буфер обмена"))
+        notificationPanel.previewBody = qsTr("Текст скопирован в буфер обмена")
+        notificationPanel.publish()
     }
 
     Audio {
@@ -59,40 +65,118 @@ Page {
         autoLoad: true
     }
 
-    // ---- КАСТОМНЫЙ БАННЕР ----
-    Rectangle {
-        id: customBanner
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        height: Theme.itemSizeSmall
-        color: Theme.highlightColor
-        opacity: 0
-        visible: false
+    // --- Фоновая область для закрытия меню при клике мимо него ---
+    MouseArea {
+        id: menuDismissArea
+        anchors.fill: parent
+        visible: dropdownMenu.visible
+        z: 99
+        onClicked: dropdownMenu.visible = false
+    }
+
+    // --- Фиксированная верхняя панель вместо старого PageHeader ---
+    Item {
+        id: topBar
+        width: parent.width
+        height: Theme.itemSizeMedium
+        anchors.top: parent.top
         z: 100
 
-        Label {
-            id: bannerLabel
+        IconButton {
+            id: menuButton
+            anchors {
+                right: parent.right
+                verticalCenter: parent.verticalCenter
+                rightMargin: Theme.horizontalPageMargin
+            }
+            icon.source: "image://theme/icon-m-more"
+            onClicked: dropdownMenu.visible = !dropdownMenu.visible
+        }
+    }
+
+    // --- Кастомное выпадающее меню на три точки ---
+    Rectangle {
+        id: dropdownMenu
+        visible: false
+        z: 101
+        width: Theme.itemSizeLarge * 3.5
+        height: menuColumn.height + Theme.paddingMedium * 2
+        color: Theme.overlayBackgroundColor // Специальный цвет темы для перекрывающих меню
+        radius: 12
+        border.color: Theme.rgba(Theme.secondaryColor, 0.3) // Рамка по всему периметру
+        border.width: 1
+
+        anchors {
+            top: topBar.bottom
+            right: parent.right
+            rightMargin: Theme.horizontalPageMargin
+        }
+
+        Column {
+            id: menuColumn
+            width: parent.width
             anchors.centerIn: parent
-            text: ""
-            color: "white"
-            font.pixelSize: Theme.fontSizeSmall
-        }
 
-        Behavior on opacity { NumberAnimation { duration: 300 } }
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: {
+                    dropdownMenu.visible = false
+                    copyToClipboard()
+                }
+                Label {
+                    anchors {
+                        left: parent.left
+                        leftMargin: Theme.paddingLarge
+                        verticalCenter: parent.verticalCenter
+                    }
+                    text: qsTr("Копировать текст")
+                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+            }
 
-        function show(text, duration) {
-            bannerLabel.text = text
-            visible = true
-            opacity = 1
-            if (bannerTimer.running) bannerTimer.stop()
-            bannerTimer.interval = duration || 2500
-            bannerTimer.start()
-        }
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: {
+                    dropdownMenu.visible = false
+                    exportToFile()
+                }
+                Label {
+                    anchors {
+                        left: parent.left
+                        leftMargin: Theme.paddingLarge
+                        verticalCenter: parent.verticalCenter
+                    }
+                    text: qsTr("Экспортировать в файл")
+                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
+            }
 
-        Timer {
-            id: bannerTimer
-            onTriggered: {
-                customBanner.opacity = 0
-                customBanner.visible = false
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: {
+                    dropdownMenu.visible = false
+                    remorse.execute(qsTr("Удаление заметки"), function() {
+                        if (noteId >= 0) {
+                            Db.deleteNote(noteId)
+                        }
+                        pageStack.pop()
+                    })
+                }
+                Label {
+                    anchors {
+                        left: parent.left
+                        leftMargin: Theme.paddingLarge
+                        verticalCenter: parent.verticalCenter
+                    }
+                    text: qsTr("Удалить заметку")
+                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
+                    font.pixelSize: Theme.fontSizeSmall
+                }
             }
         }
     }
@@ -100,82 +184,83 @@ Page {
     SilicaFlickable {
         id: flickable
         anchors.fill: parent
-        contentHeight: column.height
-
-        PullDownMenu {
-            MenuItem {
-                text: qsTr("Удалить заметку")
-                onClicked: {
-                    remorse.execute(qsTr("Удаление заметки"), function() {
-                        if (noteId >= 0) Db.deleteNote(noteId)
-                        pageStack.pop()
-                    })
-                }
-            }
-            MenuItem {
-                text: qsTr("Экспортировать текст в файл")
-                onClicked: exportToFile()
-            }
-            MenuItem {
-                text: qsTr("Копировать текст")
-                onClicked: copyToClipboard()
-            }
-        }
+        contentHeight: column.height + Theme.paddingLarge
 
         RemorsePopup { id: remorse }
 
         Column {
             id: column
             width: parent.width
+            spacing: Theme.paddingLarge
 
-            PageHeader { title: qsTr("Заметка") }
-
-            Label {
-                id: titleLabel
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: noteTitle
-                color: Theme.primaryColor
-                font.pixelSize: Theme.fontSizeLarge
-                font.weight: Font.Bold
-                wrapMode: Text.WordWrap
-            }
-
-            Item { width: 1; height: Theme.paddingSmall }
-
-            Row {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                spacing: Theme.paddingMedium
-
-                Label {
-                    text: noteDate
-                    color: Theme.secondaryColor
-                    font.pixelSize: Theme.fontSizeExtraSmall
-                }
-
-                Label {
-                    text: noteDuration
-                    color: Theme.secondaryColor
-                    font.pixelSize: Theme.fontSizeExtraSmall
-                }
-            }
-
-            Item { width: 1; height: Theme.paddingMedium }
-
-            SectionHeader { text: qsTr("Аудиозапись") }
-
+            // Отступ сверху, чтобы контент плавно уходил под фиксированную кнопку меню при скролле
             Item {
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                x: Theme.horizontalPageMargin
-                height: audioPlayerColumn.height
+                width: parent.width
+                height: Theme.itemSizeMedium
+            }
 
-                Column {
-                    id: audioPlayerColumn
+            // --- Блок заголовка и метаданных ---
+            Column {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                spacing: Theme.paddingSmall
+
+                Label {
+                    id: titleLabel
                     width: parent.width
+                    text: noteTitle
+                    color: Theme.highlightColor
+                    font.pixelSize: Theme.fontSizeExtraLarge
+                    font.weight: Font.Bold
+                    wrapMode: Text.WordWrap
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: Theme.paddingMedium
+
+                    Label {
+                        text: noteDate
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+                    Label {
+                        text: "•"
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        visible: noteDuration !== ""
+                    }
+                    Label {
+                        text: noteDuration
+                        color: Theme.secondaryColor
+                        font.pixelSize: Theme.fontSizeSmall
+                        visible: noteDuration !== ""
+                    }
+                }
+            }
+
+            // --- Блок аудиоплеера (Карточка) ---
+            Item {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                height: playerBackground.height
+                visible: noteAudio !== ""
+
+                Rectangle {
+                    id: playerBackground
+                    width: parent.width
+                    height: playerControls.height + Theme.paddingMedium * 2
+                    color: Theme.rgba(Theme.highlightBackgroundColor, 0.1)
+                    radius: 12
 
                     Row {
-                        width: parent.width
+                        id: playerControls
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            margins: Theme.paddingMedium
+                        }
                         spacing: Theme.paddingMedium
 
                         IconButton {
@@ -187,18 +272,19 @@ Page {
                             icon.height: Theme.iconSizeMedium
                             width: Theme.itemSizeSmall
                             height: Theme.itemSizeSmall
-                            enabled: noteAudio !== ""
                             onClicked: {
-                                if (audioPlayer.playbackState === Audio.PlayingState)
+                                if (audioPlayer.playbackState === Audio.PlayingState) {
                                     audioPlayer.pause()
-                                else
+                                } else {
                                     audioPlayer.play()
+                                }
                             }
                         }
 
                         Item {
-                            width: parent.width - playButton.width - Theme.paddingMedium
+                            width: parent.width - playButton.width - timeLabel.width - Theme.paddingMedium * 2
                             height: Theme.itemSizeSmall
+                            anchors.verticalCenter: parent.verticalCenter
 
                             Slider {
                                 id: playbackSlider
@@ -208,8 +294,12 @@ Page {
                                 maximumValue: audioPlayer.duration > 0 ? audioPlayer.duration : 1
                                 stepSize: 1
                                 enabled: audioPlayer.seekable
+                                handleVisible: true
+
                                 onDownChanged: {
-                                    if (!down) audioPlayer.seek(value)
+                                    if (!down) {
+                                        audioPlayer.seek(value)
+                                    }
                                 }
                             }
 
@@ -220,24 +310,11 @@ Page {
                                 when: !playbackSlider.down
                             }
                         }
-                    }
-
-                    Row {
-                        width: parent.width
-                        spacing: Theme.paddingMedium
 
                         Label {
+                            id: timeLabel
+                            anchors.verticalCenter: parent.verticalCenter
                             text: formatTime(audioPlayer.position / 1000)
-                            color: Theme.secondaryColor
-                            font.pixelSize: Theme.fontSizeExtraSmall
-                        }
-
-                        Item { width: 1; height: 1 }
-
-                        Label {
-                            text: audioPlayer.duration > 0
-                                  ? formatTime(audioPlayer.duration / 1000)
-                                  : noteDuration
                             color: Theme.secondaryColor
                             font.pixelSize: Theme.fontSizeExtraSmall
                         }
@@ -245,48 +322,26 @@ Page {
                 }
             }
 
-            Item { width: 1; height: Theme.paddingMedium }
-
-            SectionHeader { text: qsTr("Расшифровка") }
-
-            TextArea {
+            // --- Блок текста (Расшифровка) ---
+            Label {
                 id: transcriptionText
                 x: Theme.horizontalPageMargin
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 text: noteText
                 color: Theme.primaryColor
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.fontSizeMedium
                 wrapMode: Text.WordWrap
-                readOnly: true
+                textFormat: Text.PlainText
+                visible: noteText !== ""
             }
-
-            Item { width: 1; height: Theme.paddingLarge }
-
-            SectionHeader { text: qsTr("Экспорт") }
-
-            Column {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                spacing: Theme.paddingMedium
-
-                Button {
-                    width: parent.width
-                    text: qsTr("Копировать текст в буфер")
-                    onClicked: copyToClipboard()
-                }
-
-                Button {
-                    width: parent.width
-                    text: qsTr("Сохранить текст в файл")
-                    onClicked: exportToFile()
-                }
-            }
-
-            Item { width: 1; height: Theme.paddingLarge }
         }
 
         VerticalScrollDecorator {}
     }
 
     Component.onDestruction: audioPlayer.stop()
+
+    Notification {
+        id: notificationPanel
+    }
 }

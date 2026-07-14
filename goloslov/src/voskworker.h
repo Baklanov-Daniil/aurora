@@ -8,6 +8,9 @@
 struct VoskModel;
 struct VoskRecognizer;
 
+// VoskWorker owns the Vosk model/recognizer and is meant to live in a
+// dedicated QThread. All heavy work (model loading, decoding) happens here so
+// the GUI thread is never blocked.
 class VoskWorker : public QObject
 {
     Q_OBJECT
@@ -23,8 +26,11 @@ public slots:
 
 signals:
     void loaded(bool ok, const QString &message);
+    // A completed utterance (silence detected).
     void utterance(const QString &text);
+    // The trailing utterance produced by finalize().
     void finalUtterance(const QString &text);
+    // Interim, not-yet-final hypothesis.
     void partial(const QString &text);
 
 private:

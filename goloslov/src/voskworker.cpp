@@ -39,6 +39,7 @@ QString VoskWorker::parseField(const char *json, const QString &field)
 
 void VoskWorker::load(const QString &modelPath, int sampleRate)
 {
+    // Quieten Kaldi's own logging.
     vosk_set_log_level(-1);
 
     if (!QDir(modelPath).exists()) {

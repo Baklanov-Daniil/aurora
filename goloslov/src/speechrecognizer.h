@@ -16,6 +16,10 @@ QT_END_NAMESPACE
 
 class VoskWorker;
 
+// SpeechRecognizer wires live microphone capture (QtMultimedia) to an offline
+// Vosk recognizer that runs in its own worker thread, so the UI stays
+// responsive. The recorded audio is written to a WAV file in the application
+// data directory and the recognised text is emitted when recording stops.
 class SpeechRecognizer : public QObject
 {
     Q_OBJECT
@@ -47,14 +51,23 @@ public:
     int durationSec() const { return m_durationSec; }
 
 public slots:
+    // Loads the Vosk model in the background. Safe to call more than once.
     void init();
+    // Starts microphone capture and streaming recognition.
     void start();
+    // Stops capture, flushes the recognizer and emits finished().
     void stop();
+    // Aborts capture and discards the current recording/recognition.
         void cancel();
+        // Pauses audio capture without discarding the accumulated PCM buffer.
         void pause();
+        // Resumes audio capture after a pause.
         void resume();
 
+    // Saves arbitrary text to a file (UTF-8). Handles file:// URLs and local paths.
     Q_INVOKABLE bool saveTextToFile(const QString &filePath, const QString &text);
+    // Returns the size of a file in bytes, or 0 on error. Handles file:// URLs.
+    Q_INVOKABLE int fileSize(const QString &path) const;
 
 signals:
     void modelPathChanged();
@@ -67,9 +80,12 @@ signals:
     void partialTextChanged();
     void fullTextChanged();
     void durationSecChanged();
+    // Emitted after stop() once the final text is available.
+    // audioPath is a file:// URL to the recorded WAV (empty when nothing recorded).
     void finished(const QString &text, const QString &audioPath, int durationSec);
     void errorOccurred(const QString &message);
 
+    // Internal cross-thread requests to the worker.
     void requestLoad(const QString &path, int sampleRate);
     void requestFeed(const QByteArray &pcm);
     void requestFinalize();

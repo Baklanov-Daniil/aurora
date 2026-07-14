@@ -1,6 +1,7 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import ru.omstu.goloslov_icon 1.0
+import Nemo.Notifications 1.0
+import ru.omstu.goloslov 1.0
 import "../Database.js" as Db
 
 Page {
@@ -17,49 +18,12 @@ Page {
         return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + sec
     }
 
-    // ---- КАСТОМНЫЙ БАННЕР ----
-    Rectangle {
-        id: customBanner
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        height: Theme.itemSizeSmall
-        color: Theme.highlightColor
-        opacity: 0
-        visible: false
-        z: 100
-
-        Label {
-            id: bannerLabel
-            anchors.centerIn: parent
-            text: ""
-            color: "white"
-            font.pixelSize: Theme.fontSizeSmall
-        }
-
-        Behavior on opacity { NumberAnimation { duration: 300 } }
-
-        function show(text, duration) {
-            bannerLabel.text = text
-            visible = true
-            opacity = 1
-            if (bannerTimer.running) bannerTimer.stop()
-            bannerTimer.interval = duration || 3000
-            bannerTimer.start()
-        }
-
-        Timer {
-            id: bannerTimer
-            onTriggered: {
-                customBanner.opacity = 0
-                customBanner.visible = false
-            }
-        }
-    }
-
     Connections {
         target: SpeechRecognizer
 
         onFinished: {
             var clean = text ? text.trim() : ""
+            // Note is saved centrally by ApplicationWindow
             pageStack.replace(Qt.resolvedUrl("NoteViewPage.qml"), {
                 noteId: appWindow.lastNoteId,
                 noteTitle: qsTr("Запись от %1").arg(Qt.formatDateTime(new Date(), "dd.MM.yyyy hh:mm")),
@@ -71,7 +35,8 @@ Page {
         }
 
         onErrorOccurred: {
-            customBanner.show(message)
+            statusNotification.previewBody = message
+            statusNotification.publish()
         }
     }
 
@@ -84,14 +49,12 @@ Page {
             width: parent.width
 
             PageHeader {
-                title: SpeechRecognizer.recording ? qsTr("Запись") :
-                       SpeechRecognizer.finalizing ? qsTr("Расшифровка") :
-                       SpeechRecognizer.loading ? qsTr("Загрузка модели") :
-                       qsTr("Готов к записи")
+                title: qsTr("")
             }
 
-            // Уровень сигнала
+            // Signal level visualization
             Item {
+                id: signalLevelContainer
                 width: parent.width
                 height: Theme.itemSizeExtraLarge * 2
                 visible: SpeechRecognizer.recording
@@ -124,7 +87,7 @@ Page {
                 }
             }
 
-            // Длительность
+            // Duration display
             Label {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: formatTime(SpeechRecognizer.durationSec)
@@ -136,12 +99,11 @@ Page {
 
             Item { width: 1; height: Theme.paddingLarge }
 
-            // Кнопки управления
+            // Control buttons row: Cancel | Pause | Record/Stop
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: Theme.paddingLarge
 
-                // Cancel
                 Rectangle {
                     width: Theme.itemSizeExtraLarge * 1.2
                     height: Theme.itemSizeExtraLarge * 1.2
@@ -160,7 +122,6 @@ Page {
                     }
                 }
 
-                // Pause/Resume
                 Rectangle {
                     width: Theme.itemSizeExtraLarge * 1.2
                     height: Theme.itemSizeExtraLarge * 1.2
@@ -179,15 +140,15 @@ Page {
                         height: parent.height
                         enabled: SpeechRecognizer.recording && !SpeechRecognizer.finalizing
                         onClicked: {
-                            if (SpeechRecognizer.paused)
+                            if (SpeechRecognizer.paused) {
                                 SpeechRecognizer.resume()
-                            else
+                            } else {
                                 SpeechRecognizer.pause()
+                            }
                         }
                     }
                 }
 
-                // Start/Stop
                 Rectangle {
                     width: Theme.itemSizeExtraLarge * 1.2
                     height: Theme.itemSizeExtraLarge * 1.2
@@ -206,16 +167,17 @@ Page {
                         height: parent.height
                         enabled: SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing
                         onClicked: {
-                            if (SpeechRecognizer.recording)
+                            if (SpeechRecognizer.recording) {
                                 SpeechRecognizer.stop()
-                            else
+                            } else {
                                 SpeechRecognizer.start()
+                            }
                         }
                     }
                 }
             }
 
-            // Индикатор загрузки модели
+            // Model loading indicator (moved below buttons)
             Item {
                 width: parent.width
                 height: Theme.itemSizeExtraLarge
@@ -230,7 +192,7 @@ Page {
 
             Item { width: 1; height: Theme.paddingLarge }
 
-            // Живая расшифровка
+            // Live transcription (moved below buttons)
             Item {
                 width: parent.width - 2 * Theme.horizontalPageMargin
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -278,7 +240,7 @@ Page {
                 }
             }
 
-            // Подсказка внизу
+            // Hint label – hidden only while recording
             Label {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: parent.width - 2 * Theme.horizontalPageMargin
@@ -297,5 +259,9 @@ Page {
         }
 
         VerticalScrollDecorator {}
+    }
+
+    Notification {
+        id: statusNotification
     }
 }
