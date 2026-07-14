@@ -10,6 +10,15 @@ ApplicationWindow {
     cover: Qt.resolvedUrl("cover/DefaultCoverPage.qml")
     allowedOrientations: defaultAllowedOrientations
 
+    // ---- Новая цветовая схема в стиле иконки ----
+    palette {
+        highlightColor: "#FFB300"      // жёлто-оранжевый (акцент)
+        primaryColor: "#FFFFFF"        // белый для основного текста
+        secondaryColor: "#A0B4C8"      // светло-серо-синий
+        background: "#0D1B2A"          // тёмно-синий фон
+        buttonColor: "#1B2D45"         // тёмно-синий для кнопок
+    }
+
     property int lastNoteId: 0
     property var mainPage: null
     property var coverPage: null
@@ -23,14 +32,12 @@ ApplicationWindow {
 
     Component.onCompleted: {
         SpeechRecognizer.init()
-        // Centralised save — works regardless of which page is open.
         SpeechRecognizer.finished.connect(function(text, audioUrl, durationSec) {
             var now = new Date()
             var dateStr = Qt.formatDateTime(now, "dd.MM.yyyy hh:mm")
             var title = qsTr("Запись от %1").arg(dateStr)
             var durStr = formatTime(durationSec)
-            var fileBytes = SpeechRecognizer.fileSize(audioUrl)
-            lastNoteId = Db.addNote(title, dateStr, text, durStr, audioUrl, fileBytes)
+            lastNoteId = Db.addNote(title, dateStr, text, durStr, audioUrl)
             if (mainPage) mainPage.reloadNotes()
             if (coverPage) coverPage.refreshCount()
         })
