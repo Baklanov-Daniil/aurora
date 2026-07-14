@@ -1,0 +1,43 @@
+import QtQuick 2.0
+import Sailfish.Silica 1.0
+import ru.omstu.goloslov_icon 1.0
+import "Database.js" as Db
+
+ApplicationWindow {
+    id: appWindow
+    objectName: "applicationWindow"
+    initialPage: Qt.resolvedUrl("pages/MainPage.qml")
+    cover: Qt.resolvedUrl("cover/DefaultCoverPage.qml")
+    allowedOrientations: defaultAllowedOrientations
+
+    // Собственные цвета для уникальности
+    palette {
+        highlightColor: "#FF6F00"   // оранжевый
+        primaryColor: "#1C1C1C"
+        secondaryColor: "#BDBDBD"
+    }
+
+    property int lastNoteId: 0
+    property var mainPage: null
+    property var coverPage: null
+
+    function formatTime(seconds) {
+        var s = Math.floor(seconds)
+        var min = Math.floor(s / 60)
+        var sec = s % 60
+        return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + sec
+    }
+
+    Component.onCompleted: {
+        SpeechRecognizer.init()
+        SpeechRecognizer.finished.connect(function(text, audioUrl, durationSec) {
+            var now = new Date()
+            var dateStr = Qt.formatDateTime(now, "dd.MM.yyyy hh:mm")
+            var title = qsTr("Запись от %1").arg(dateStr)
+            var durStr = formatTime(durationSec)
+            lastNoteId = Db.addNote(title, dateStr, text, durStr, audioUrl)
+            if (mainPage) mainPage.reloadNotes()
+            if (coverPage) coverPage.refreshCount()
+        })
+    }
+}

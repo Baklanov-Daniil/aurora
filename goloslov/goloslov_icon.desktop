@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+X-Nemo-Application-Type=silica-qt5
+Icon=goloslov_icon
+Exec=/usr/bin/goloslov_icon
+Name=Voice Notes
+Name[ru]=Голосовые заметки
+
+[X-Sailjail]
+Sandboxing=Disabled
+OrganizationName=ru.omstu
+ApplicationName=voicenotes
+
+[X-Application]
+Permissions=Audio;Microphone;UserDirs
+OrganizationName=ru.omstu
+ApplicationName=voicenotes
+ExecDBus=/usr/bin/goloslov_icon

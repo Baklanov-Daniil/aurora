@@ -1,43 +1,120 @@
-import QtQuick 2.6
+import QtQuick 2.0
 import Sailfish.Silica 1.0
+import ru.omstu.voicenotes 1.0
+import "../Database.js" as Db
 
 CoverBackground {
-    Column {
+    id: cover
+    objectName: "defaultCover"
+    property string notesCount: "0"
+    property bool modelReady: false
+    property bool modelLoading: true
+
+    function refreshCount() {
+        notesCount = "" + Db.notesCount()
+    }
+
+    Component.onCompleted: {
+        refreshCount()
+        SpeechRecognizer.init()
+        appWindow.coverPage = cover
+    }
+
+    onStatusChanged: {
+        if (status === Cover.Active) {
+            refreshCount()
+        }
+    }
+
+    Connections {
+        target: SpeechRecognizer
+        onModelReadyChanged: {
+            modelReady = SpeechRecognizer.modelReady
+        }
+        onLoadingChanged: {
+            modelLoading = SpeechRecognizer.loading
+        }
+        onFinished: {
+            refreshCount()
+            // Saving is handled by ApplicationWindow (imperative connect)
+        }
+    }
+
+    Item {
         anchors {
-            top: parent.top
-            left: parent.left
-            right: parent.right
-            topMargin: Theme.paddingLarge
-            leftMargin: Theme.paddingMedium
-            rightMargin: Theme.paddingMedium
-        }
-        spacing: Theme.paddingSmall
-
-        Label {
-            width: parent.width
-            text: qsTr("goloslov")
-            font.pixelSize: Theme.fontSizeMedium
-            color: Theme.highlightColor
+            fill: parent
+            bottomMargin: Theme._coverActionsAreaHorizontalHeight
         }
 
-        Label {
-            width: parent.width
-            text: audioRecorder.isRecording ? qsTr("Идет запись...") : qsTr("Нет активных записей")
-            font.pixelSize: Theme.fontSizeSmall
-            color: Theme.secondaryHighlightColor
+        Column {
+            anchors.centerIn: parent
+            spacing: Theme.paddingSmall
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: {
+                    if (modelLoading)
+                        return qsTr("Загрузка модели...")
+                    if (!modelReady && !SpeechRecognizer.recording)
+                        return qsTr("Модель недоступна")
+                    if (SpeechRecognizer.paused)
+                        return qsTr("Пауза")
+                    if (SpeechRecognizer.recording)
+                        return qsTr("Идёт запись...")
+                    return qsTr("Заметок: %1").arg(notesCount)
+                }
+                color: (SpeechRecognizer.recording && !SpeechRecognizer.paused)
+                       ? Theme.errorColor : Theme.primaryColor
+                font.pixelSize: Theme.fontSizeMedium
+            }
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: formatTime(SpeechRecognizer.durationSec)
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeSmall
+                visible: SpeechRecognizer.recording
+            }
         }
     }
 
     CoverActionList {
+        enabled: modelReady && !SpeechRecognizer.recording
+
         CoverAction {
-            iconSource: audioRecorder.isRecording ? "image://theme/icon-cover-pause" : "image://theme/icon-cover-new"
+            iconSource: "image://theme/icon-m-mic"
+            onTriggered: SpeechRecognizer.start()
+        }
+    }
+
+    CoverActionList {
+        enabled: SpeechRecognizer.recording
+
+        CoverAction {
+            iconSource: "image://theme/icon-m-cancel"
+            onTriggered: SpeechRecognizer.cancel()
+        }
+        CoverAction {
+            iconSource: SpeechRecognizer.paused ? "image://theme/icon-m-play"
+                                                : "image://theme/icon-m-pause"
             onTriggered: {
-                if (audioRecorder.isRecording) {
-                    audioRecorder.stopRecording();
+                if (SpeechRecognizer.paused) {
+                    SpeechRecognizer.resume()
                 } else {
-                    audioRecorder.startRecording();
+                    SpeechRecognizer.pause()
                 }
             }
         }
+        CoverAction {
+            iconSource: "image://theme/icon-m-stop"
+            onTriggered: SpeechRecognizer.stop()
+        }
+    }
+
+    function formatTime(seconds) {
+        var s = Math.floor(seconds)
+        var min = Math.floor(s / 60)
+        var sec = s % 60
+        return (min < 10 ? "0" : "") + min + ":" + (sec < 10 ? "0" : "") + sec
     }
 }

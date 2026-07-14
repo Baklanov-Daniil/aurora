@@ -2,47 +2,68 @@ import QtQuick 2.0
 import Sailfish.Silica 1.0
 
 Page {
-    objectName: "aboutPage"
+    id: aboutPage
     allowedOrientations: Orientation.All
 
     SilicaFlickable {
-        objectName: "flickable"
         anchors.fill: parent
-        contentHeight: layout.height + Theme.paddingLarge
+        contentHeight: column.height + Theme.paddingLarge
 
         Column {
-            id: layout
-            objectName: "layout"
+            id: column
             width: parent.width
+            spacing: Theme.paddingMedium
 
             PageHeader {
-                objectName: "pageHeader"
-                title: qsTr("About Application")
+                title: qsTr("О приложении")
             }
 
             Label {
-                objectName: "descriptionText"
-                anchors { left: parent.left; right: parent.right; margins: Theme.horizontalPageMargin }
-                color: palette.highlightColor
-                font.pixelSize: Theme.fontSizeSmall
-                textFormat: Text.RichText
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.WordWrap
-                text: qsTr("#descriptionText")
+                color: Theme.primaryColor
+                font.pixelSize: Theme.fontSizeSmall
+                text: qsTr(
+                    "Голослов — офлайн-диктофон с распознаванием речи\n\n" +
+                    "Версия 1.0"
+                )
             }
 
             SectionHeader {
-                objectName: "licenseHeader"
-                text: qsTr("3-Clause BSD License")
+                text: qsTr("Лицензия")
             }
 
             Label {
-                objectName: "licenseText"
-                anchors { left: parent.left; right: parent.right; margins: Theme.horizontalPageMargin }
-                color: palette.highlightColor
-                font.pixelSize: Theme.fontSizeSmall
-                textFormat: Text.RichText
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
                 wrapMode: Text.WordWrap
-                text: qsTr("#licenseText")
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+                text: qsTr(
+                    "Используемые библиотеки находятся в открытом доступе: Qt, Vosk"
+                )
+            }
+
+            SectionHeader {
+                text: qsTr("Благодарности")
+            }
+
+            Label {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                wrapMode: Text.WordWrap
+                color: Theme.secondaryColor
+                font.pixelSize: Theme.fontSizeExtraSmall
+                text: qsTr(
+                    "Модель распознавания речи: Vosk (https://alphacephei.com/vosk/)\n" +
+                    "Выражаем благодарность разработчикам за отличные инструменты."
+                )
+            }
+
+            Item {
+                width: 1
+                height: Theme.paddingLarge
             }
         }
     }
