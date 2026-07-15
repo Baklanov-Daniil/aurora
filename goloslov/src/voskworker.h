@@ -8,9 +8,6 @@
 struct VoskModel;
 struct VoskRecognizer;
 
-// VoskWorker owns the Vosk model/recognizer and is meant to live in a
-// dedicated QThread. All heavy work (model loading, decoding) happens here so
-// the GUI thread is never blocked.
 class VoskWorker : public QObject
 {
     Q_OBJECT

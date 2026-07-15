@@ -1,8 +1,6 @@
 .pragma library
 .import QtQuick.LocalStorage 2.0 as Sql
 
-// Persistent storage for voice notes (SQLite via QtQuick.LocalStorage, Qt 5.6).
-
 function getDatabase() {
     var db = Sql.LocalStorage.openDatabaseSync("voicenotes", "1.0",
                                                "Speech-to-text notes", 1000000)
@@ -15,11 +13,9 @@ function getDatabase() {
                       + "duration TEXT, "
                       + "audio TEXT, "
                       + "created INTEGER)")
-        // Add file_size column if upgrading from older schema
         try {
             tx.executeSql("ALTER TABLE notes ADD COLUMN file_size INTEGER DEFAULT 0")
         } catch (e) {
-            // Column already exists — ignore
         }
     })
     return db
@@ -33,7 +29,6 @@ function makePreview(text) {
     return t
 }
 
-// Formats bytes into human-readable size (KB or MB).
 function formatFileSize(bytes) {
     if (!bytes || bytes === 0) {
         return "0 KB"
@@ -47,7 +42,6 @@ function formatFileSize(bytes) {
     return bytes + " B"
 }
 
-// Convert duration string "MM:SS" to total seconds.
 function durationToSeconds(duration) {
     if (!duration) return 0
     var parts = duration.split(":")
@@ -57,9 +51,6 @@ function durationToSeconds(duration) {
     return min * 60 + sec
 }
 
-// Load all notes into the given ListModel.
-// sortMode: "date" (default), "title", "duration", "size"
-// sortDir: "desc" (default) or "asc"
 function loadNotes(model, sortMode, sortDir) {
     var mode = sortMode || "date"
     var dir = sortDir || "desc"
@@ -120,7 +111,6 @@ function loadNotes(model, sortMode, sortDir) {
     })
 }
 
-// Insert a note. Returns the new note id, or -1 on failure.
 function addNote(title, date, text, duration, audio, fileSizeBytes) {
     var db = getDatabase()
     var newId = -1

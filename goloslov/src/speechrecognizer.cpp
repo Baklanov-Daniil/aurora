@@ -39,9 +39,7 @@ SpeechRecognizer::SpeechRecognizer(QObject *parent)
     , m_gotAudio(false)
     , m_worker(new VoskWorker)
 {
-    // If capture starts but no samples ever arrive (typical on the Aurora
-    // emulator, which has no real microphone), surface an error instead of
-    // leaving the UI stuck at 00:00 forever.
+
     m_noAudioTimer.setSingleShot(true);
     m_noAudioTimer.setInterval(4000);
     connect(&m_noAudioTimer, &QTimer::timeout, this, &SpeechRecognizer::onNoAudioTimeout);
@@ -264,7 +262,6 @@ void SpeechRecognizer::onNoAudioTimeout()
     if (!m_recording || m_gotAudio) {
         return;
     }
-    // No PCM ever arrived from the input device.
     m_cancelled = true;
     teardownAudio();
     setRecording(false);
@@ -286,7 +283,6 @@ void SpeechRecognizer::stop()
     }
     m_noAudioTimer.stop();
         setPaused(false);
-        // Grab any bytes still buffered before tearing the input down.
     if (m_audioIo) {
         const QByteArray tail = m_audioIo->readAll();
         if (!tail.isEmpty()) {
@@ -298,7 +294,6 @@ void SpeechRecognizer::stop()
     setRecording(false);
     setLevel(0.0);
     setFinalizing(true);
-    // Runs after all queued feed() calls on the worker thread.
     emit requestFinalize();
 }
 
@@ -318,7 +313,6 @@ void SpeechRecognizer::cancel()
     m_fullText.clear();
     emit fullTextChanged();
     if (m_finalizing) {
-        // A finalize is already in flight; onFinalUtterance will honour the flag.
         return;
     }
     setFinalizing(true);
@@ -421,8 +415,8 @@ QString SpeechRecognizer::writeWav(const QByteArray &pcm) const
     out << riffSize;
     file.write("WAVE", 4);
     file.write("fmt ", 4);
-    out << quint32(16);            // PCM fmt chunk size
-    out << quint16(1);             // audio format = PCM
+    out << quint32(16);
+    out << quint16(1);
     out << channels;
     out << sampleRate;
     out << byteRate;

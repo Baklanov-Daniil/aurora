@@ -119,21 +119,18 @@ Page {
 
             Item { width: 1; height: 1; }
 
-            // Кнопка ПЕРЕИМЕНОВАТЬ
             IconButton {
                 icon.source: "image://theme/icon-m-edit"
                 anchors.verticalCenter: parent.verticalCenter
                 onClicked: showRenameField()
             }
 
-            // Кнопка КОПИРОВАТЬ
             IconButton {
                 icon.source: "image://theme/icon-m-copy"
                 anchors.verticalCenter: parent.verticalCenter
                 onClicked: copyToClipboard()
             }
 
-            // Кнопка УДАЛИТЬ
             IconButton {
                 icon.source: "image://theme/icon-m-delete"
                 anchors.verticalCenter: parent.verticalCenter
@@ -147,7 +144,6 @@ Page {
         }
     }
 
-    // --- INLINE-поле переименования ---
     Rectangle {
         id: renameBar
         anchors { top: header.bottom; left: parent.left; right: parent.right }
@@ -228,7 +224,6 @@ Page {
             width: parent.width
             spacing: Theme.paddingMedium
 
-            // Заголовок заметки (ИСПРАВЛЕНО ВЫРАВНИВАНИЕ)
             Label {
                 width: parent.width - 2 * Theme.paddingMedium
                 x: Theme.paddingMedium
@@ -237,7 +232,7 @@ Page {
                 font.pixelSize: Theme.fontSizeExtraLarge
                 font.bold: true
                 wrapMode: Text.WordWrap
-                verticalAlignment: Text.AlignVCenter // <-- ЭТО ИСПРАВЛЯЕТ СМЕЩЕНИЕ ВВЕРХ
+                verticalAlignment: Text.AlignVCenter
             }
 
             Row {

@@ -68,7 +68,6 @@ Page {
         }
     }
 
-    // --- ПУЛЬСИРУЮЩИЙ КРУГ (Индикатор уровня шума) ---
     Item {
         id: audioIndicator
         anchors {
@@ -80,7 +79,6 @@ Page {
         height: width
         visible: SpeechRecognizer.recording
 
-        // Фоновый круг (трек)
         Rectangle {
             anchors.fill: parent
             radius: width / 2
@@ -89,17 +87,14 @@ Page {
             border.width: 2
         }
 
-        // Пульсирующий круг (заполнение)
         Rectangle {
             anchors.centerIn: parent
-            // Размер меняется от 30% до 80% в зависимости от уровня громкости
             width: parent.width * (0.3 + SpeechRecognizer.level * 0.5)
             height: width
             radius: width / 2
-            color: SpeechRecognizer.level < 0.7 ? "#FFB300" : "#FF5722" // Оранжевый -> красноватый на пике
+            color: SpeechRecognizer.level < 0.7 ? "#FFB300" : "#FF5722"
             opacity: 0.4 + SpeechRecognizer.level * 0.6
 
-            // Плавная анимация изменения размера и прозрачности
             Behavior on width {
                 NumberAnimation { duration: 100; easing.type: Easing.OutQuad }
             }
@@ -117,7 +112,6 @@ Page {
         }
     }
 
-    // --- Длительность записи ---
     Label {
         anchors {
             horizontalCenter: parent.horizontalCenter
@@ -131,7 +125,6 @@ Page {
         visible: SpeechRecognizer.recording
     }
 
-    // --- Живая расшифровка ---
     Rectangle {
         anchors {
             left: parent.left
@@ -182,7 +175,6 @@ Page {
         }
     }
 
-    // --- Кнопки управления (Ваш вариант с адаптацией под оранжевую тему) ---
     Row {
         id: controlsRow
         anchors {
@@ -237,12 +229,11 @@ Page {
             }
         }
 
-        // Старт/Стоп (Ваш запрошенный шаблон)
         Rectangle {
             width: Theme.itemSizeExtraLarge * 1.2
             height: Theme.itemSizeExtraLarge * 1.2
             radius: width / 2
-            color: SpeechRecognizer.recording ? "#FF5722" : "#FFB300" // Адаптировано под оранжевую тему
+            color: SpeechRecognizer.recording ? "#FF5722" : "#FFB300"
             opacity: (SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing) ? 1.0 : 0.4
             visible: !SpeechRecognizer.finalizing
 

@@ -115,7 +115,7 @@ Page {
             sortDir = "desc"
         }
         reloadNotes()
-        sortPopup.visible = false // Закрываем окошко после выбора
+        sortPopup.visible = false
     }
 
     function toggleSearch() {
@@ -138,7 +138,6 @@ Page {
         filterNotes("")
     }
 
-    // --- Диалог переименования ---
     Dialog {
         id: renameDialog
         property int noteId: -1
@@ -163,13 +162,11 @@ Page {
         }
     }
 
-    // --- Основной фон ---
     Rectangle {
         anchors.fill: parent
         color: "#121212"
     }
 
-    // --- Заголовок ---
     Rectangle {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right }
@@ -186,7 +183,6 @@ Page {
         }
     }
 
-    // --- Полоска поиска ---
     Rectangle {
         id: searchBar
         anchors { top: header.bottom; left: parent.left; right: parent.right }
@@ -244,7 +240,6 @@ Page {
         }
     }
 
-    // --- Список заметок ---
     SilicaListView {
         id: notesListView
         anchors {
@@ -257,7 +252,6 @@ Page {
         delegate: noteDelegate
         spacing: Theme.paddingSmall
 
-        // 1. ИСПРАВЛЕННЫЙ ПОРЯДОК ПУНКТОВ МЕНЮ
         PullDownMenu {
             id: pullDownMenu
 
@@ -297,9 +291,6 @@ Page {
         }
     }
 
-    // 2. МАЛЕНЬКОЕ ОКОШКО СОРТИРОВКИ С ОБОДКОМ (вместо Dialog)
-
-    // Затемнение фона для закрытия по клику вне окна
     MouseArea {
         anchors.fill: parent
         visible: sortPopup.visible
@@ -307,19 +298,18 @@ Page {
         onClicked: sortPopup.visible = false
     }
 
-    // Само окошко сортировки
     Rectangle {
         id: sortPopup
         visible: false
         z: 51
-        width: parent.width * 0.75 // Не на весь экран, а компактное
+        width: parent.width * 0.75
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: header.bottom
         anchors.topMargin: Theme.paddingMedium
         height: sortColumn.height + Theme.paddingMedium * 2
         color: "#1E1E1E"
         radius: 12
-        border.color: "#FFB300" // Оранжевый ободок
+        border.color: "#FFB300"
         border.width: 2
 
         Column {
@@ -374,7 +364,6 @@ Page {
         }
     }
 
-    // --- Делегат заметки ---
     Component {
         id: noteDelegate
         BackgroundItem {
@@ -479,7 +468,6 @@ Page {
 
     RemorseItem { id: remorseDelete }
 
-    // --- Плавающая кнопка записи по центру ---
     Rectangle {
         id: recordButton
         anchors {

@@ -10,7 +10,6 @@ Page {
         color: "#121212"
     }
 
-    // --- Заголовок ---
     Rectangle {
         id: header
         anchors { top: parent.top; left: parent.left; right: parent.right }
@@ -22,7 +21,6 @@ Page {
             anchors { fill: parent; margins: Theme.paddingMedium }
             spacing: Theme.paddingSmall
 
-            // Кнопка назад (исправлено для Qt 5.6: MouseArea + Image вместо icon.color)
             MouseArea {
                 width: Theme.iconSizeMedium
                 height: Theme.iconSizeMedium
@@ -40,7 +38,7 @@ Page {
 
             Label {
                 text: qsTr("О приложении")
-                color: "#FFB300" // Изменено с #FF6B6B на оранжевый
+                color: "#FFB300"
                 font.pixelSize: Theme.fontSizeLarge
                 font.bold: true
                 anchors.verticalCenter: parent.verticalCenter
@@ -50,7 +48,6 @@ Page {
         }
     }
 
-    // --- Контент ---
     Column {
         anchors {
             top: header.bottom
@@ -64,7 +61,7 @@ Page {
         Label {
             anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Голослов")
-            color: "#FFB300" // Изменено с white на оранжевый для акцента
+            color: "#FFB300"
             font.pixelSize: Theme.fontSizeExtraLarge
             font.bold: true
         }
@@ -79,7 +76,7 @@ Page {
         Rectangle {
             width: parent.width
             height: 1
-            color: "#FFB300" // Разделительная линия тоже оранжевая
+            color: "#FFB300"
             opacity: 0.5
         }
 
