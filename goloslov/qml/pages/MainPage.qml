@@ -1,25 +1,24 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import ru.omstu.goloslov 1.0
 import QtGraphicalEffects 1.0
+import ru.omstu.goloslov 1.0
 import "../Database.js" as Db
 
 Page {
     id: mainPage
-    objectName: "mainPage"
     allowedOrientations: Orientation.All
 
     property bool modelLoaded: false
-    property bool isRecording: SpeechRecognizer.recording
+    property string sortField: "date"
+    property string sortDir: "desc"
+    property string searchQuery: ""
+    property bool searchVisible: false
 
-    // --- Multi-selection state ---
     property bool selectionMode: false
     property var selectedIds: []
     property bool allSelected: false
 
-    function isSelected(noteId) {
-        return selectedIds.indexOf(noteId) >= 0
-    }
+    function isSelected(noteId) { return selectedIds.indexOf(noteId) >= 0 }
 
     function toggleSelection(noteId) {
         if (isSelected(noteId)) {
@@ -61,7 +60,7 @@ Page {
 
     function deleteSelected() {
         if (selectedIds.length === 0) return
-        remorseDelete.execute(notesListView, qsTr("Удаление записей"), function() {
+        remorseDelete.execute(notesListView, qsTr("Удалить"), function() {
             Db.deleteNotes(selectedIds)
             exitSelectionMode()
             reloadNotes()
@@ -71,10 +70,12 @@ Page {
     function renameSelected() {
         if (selectedIds.length !== 1) return
         var noteId = selectedIds[0]
-        for (var j = 0; j < filteredModel.count; j++) {
-            var note = filteredModel.get(j)
+        for (var j = 0; j < notesModel.count; j++) {
+            var note = notesModel.get(j)
             if (note.noteId === noteId) {
-                renameDialogComponent.createObject(mainPage, { "noteId": noteId }).open()
+                renameDialog.noteId = noteId
+                renameDialog.nameField.text = note.title
+                renameDialog.open()
                 return
             }
         }
@@ -102,384 +103,359 @@ Page {
     }
 
     function reloadNotes() {
-        // Возвращаем сортировку по умолчанию, так как Database.js её ожидает
-        Db.loadNotes(notesModel, "date", "desc")
-        filterNotes(searchField.text)
+        Db.loadNotes(notesModel, sortField, sortDir)
+        filterNotes(searchQuery)
     }
 
-    Component.onCompleted: {
-        modelLoaded = true
+    function applySort(field) {
+        if (sortField === field) {
+            sortDir = sortDir === "asc" ? "desc" : "asc"
+        } else {
+            sortField = field
+            sortDir = "desc"
+        }
         reloadNotes()
-        appWindow.mainPage = mainPage
+        sortPopup.visible = false // Закрываем окошко после выбора
     }
 
-    onStatusChanged: {
-        if (status === PageStatus.Active) reloadNotes()
+    function toggleSearch() {
+        searchVisible = !searchVisible
+        if (!searchVisible) {
+            searchQuery = ""
+            searchField.text = ""
+            searchField.focus = false
+            filterNotes("")
+        } else {
+            searchField.forceActiveFocus()
+        }
     }
 
-    Connections {
-        target: SpeechRecognizer
-        onFinished: reloadNotes()
+    function clearSearch() {
+        searchQuery = ""
+        searchField.text = ""
+        searchField.focus = false
+        searchVisible = false
+        filterNotes("")
     }
 
-    // --- Rename dialog component (исправлен дубликат id) ---
-    Component {
-        id: renameDialogComponent
-        Dialog {
-            property int noteId: -1
-            Column {
+    // --- Диалог переименования ---
+    Dialog {
+        id: renameDialog
+        property int noteId: -1
+        property alias nameField: nameField
+        allowedOrientations: Orientation.All
+        Column {
+            width: parent.width
+            spacing: Theme.paddingMedium
+            DialogHeader { title: qsTr("Новое имя") }
+            TextField {
+                id: nameField
                 width: parent.width
-                spacing: Theme.paddingMedium
-                DialogHeader { title: qsTr("Переименовать запись") }
-                TextField {
-                    id: nameField
-                    width: parent.width
-                    placeholderText: qsTr("Название записи")
-                }
+                placeholderText: qsTr("Введите название")
             }
-            onAccepted: {
-                if (nameField.text.trim().length > 0 && noteId >= 0) {
-                    Db.updateNoteTitle(noteId, nameField.text.trim())
-                    exitSelectionMode()
-                    reloadNotes()
-                }
+        }
+        onAccepted: {
+            if (nameField.text.trim().length > 0 && noteId >= 0) {
+                Db.updateNoteTitle(noteId, nameField.text.trim())
+                exitSelectionMode()
+                reloadNotes()
             }
         }
     }
 
-    // --- Заголовок с градиентом ---
+    // --- Основной фон ---
     Rectangle {
-        id: normalHeader
-        anchors {top: parent.top; left: parent.left; right: parent.right;}
-        height: Theme.itemSizeSmall
-        visible: !selectionMode
-        z: 10
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#FFB300" }
-            GradientStop { position: 1.0; color: "#FF8F00" }
-        }
-
-        IconButton {
-            objectName: "aboutButton"
-            anchors { right: parent.right; rightMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
-            icon.source: "image://theme/icon-m-about"
-            // icon.color удален, используется дефолтный белый для хедера
-            onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
-        }
+        anchors.fill: parent
+        color: "#121212"
     }
 
-    // --- Режим множественного выбора ---
+    // --- Заголовок ---
     Rectangle {
-        id: selectionHeader
-        anchors { top: parent.top; topMargin: Theme.paddingSmall ; left: parent.left; right: parent.right }
-        height: Theme.itemSizeMedium
-        visible: selectionMode
+        id: header
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: Theme.itemSizeLarge + Theme.paddingLarge
+        color: "#1E1E1E"
         z: 10
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#FFB300" }
-            GradientStop { position: 1.0; color: "#FF8F00" }
-        }
-
-        IconButton {
-            id: exitSelectionButton
-            anchors { left: parent.left; leftMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
-            icon.source: "image://theme/icon-m-close"
-            onClicked: exitSelectionMode()
-        }
 
         Label {
-            id: selectionLabel
-            anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
-            text: qsTr("Выбрано: %1").arg(selectedIds.length)
-            color: "white"
-            font.pixelSize: Theme.fontSizeSmall
-        }
-
-        Item {
-            id: selectAllButton
-            anchors { right: parent.right; rightMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
-            width: Theme.iconSizeMedium
-            height: Theme.iconSizeMedium
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 12
-                radius: width / 2
-                color: "transparent"
-                border.color: "white"
-                border.width: 3
-                visible: !allSelected
-            }
-
-            Image {
-                anchors.fill: parent
-                source: "image://theme/icon-m-acknowledge"
-                visible: allSelected
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: selectAll()
-            }
+            text: qsTr("Голослов")
+            color: "#FFB300"
+            font.pixelSize: Theme.fontSizeLarge
+            font.bold: true
+            anchors { left: parent.left; leftMargin: Theme.paddingMedium; verticalCenter: parent.verticalCenter }
         }
     }
 
-    // --- Основной контент ---
-    SilicaFlickable {
-        id: flickable
-        anchors {
-            top: normalHeader.visible ? normalHeader.bottom : selectionHeader.bottom
-            left: parent.left
-            right: parent.right
-            bottom: bottomBar.visible ? bottomBar.top : parent.bottom
-        }
-        clip: true
-        contentHeight: column.height
-
-        Column {
-            id: column
-            width: parent.width
-
-            // Индикатор загрузки модели
-            Item {
-                width: parent.width
-                height: modelLoaded ? 0 : modelLoadingColumn.height + Theme.paddingMedium
-                visible: !modelLoaded
-                clip: true
-                Behavior on height { NumberAnimation { duration: 300 } }
-                Column {
-                    id: modelLoadingColumn
-                    width: parent.width - 2 * Theme.horizontalPageMargin
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    Item { width: 1; height: Theme.paddingSmall }
-                    Label {
-                        width: parent.width
-                        text: qsTr("Загрузка модели распознавания речи...")
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                    }
-                    Item { width: 1; height: Theme.paddingSmall }
-                    ProgressBar {
-                        id: modelProgressBar
-                        width: parent.width
-                        indeterminate: true
-                        visible: !modelLoaded
-                    }
-                }
-            }
-
-            // Индикатор активной записи
-            Item {
-                width: parent.width
-                height: isRecording ? recordingBar.height + Theme.paddingSmall : 0
-                visible: isRecording
-                clip: true
-                Behavior on height { NumberAnimation { duration: 200 } }
-                Rectangle {
-                    id: recordingBar
-                    width: parent.width; height: Theme.itemSizeSmall
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#FFB300" }
-                        GradientStop { position: 1.0; color: "#FF8F00" }
-                    }
-                    Row {
-                        anchors.centerIn: parent; spacing: Theme.paddingMedium
-                        Rectangle {
-                            id: recordingDot
-                            width: Theme.paddingSmall; height: Theme.paddingSmall
-                            radius: width / 2; color: "white"
-                            SequentialAnimation on opacity {
-                                loops: Animation.Infinite
-                                PropertyAnimation { to: 0.3; duration: 600 }
-                                PropertyAnimation { to: 1.0; duration: 600 }
-                            }
-                        }
-                        Label {
-                            text: qsTr("Идёт запись...")
-                            color: "white"
-                            font.pixelSize: Theme.fontSizeSmall
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: pageStack.push(Qt.resolvedUrl("RecordingPage.qml"))
-                    }
-                }
-            }
-
-            // Поле поиска (замена SearchField на TextField)
-            TextField {
-                id: searchField
-                width: parent.width
-                placeholderText: qsTr("Поиск по записям...")
-                visible: false
-                onTextChanged: filterNotes(text)
-                // Убран color: Theme.primaryColor, чтобы работала тема Silica
-            }
-
-            SilicaListView {
-                id: notesListView
-                width: parent.width
-                height: Math.max(mainPage.height - column.y - Theme.paddingLarge, emptyLabel.height + Theme.paddingLarge)
-                model: filteredModel
-                delegate: noteDelegate
-                spacing: 0
-                header: headerComponent
-
-                PullDownMenu {
-                    MenuItem {
-                        text: qsTr("О программе")
-                        onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
-                    }
-                    MenuItem {
-                        text: searchField.visible ? qsTr("Скрыть поиск") : qsTr("Поиск")
-                        onClicked: searchField.visible = !searchField.visible
-                    }
-                }
-                ViewPlaceholder {
-                    enabled: filteredModel.count === 0
-                    text: qsTr("Нет записей")
-                    hintText: qsTr("Нажмите на микрофон, чтобы начать запись")
-                }
-            }
-        }
-        VerticalScrollDecorator {}
-    }
-
-    // Нижняя панель действий
+    // --- Полоска поиска ---
     Rectangle {
-        id: bottomBar
-        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-        height: Theme.itemSizeMedium
-        color: "transparent"
-        visible: selectionMode
-        z: 10
+        id: searchBar
+        anchors { top: header.bottom; left: parent.left; right: parent.right }
+        height: searchVisible ? Theme.itemSizeMedium : 0
+        color: "#1E1E1E"
+        z: 9
+        clip: true
+
+        Behavior on height {
+            NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+        }
 
         Rectangle {
-            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1
-            color: Theme.secondaryColor
+            color: "#FFB300"
             opacity: 0.3
         }
 
         Row {
-            anchors { fill: parent; leftMargin: Theme.paddingMedium; rightMargin: Theme.paddingMedium }
-            spacing: Theme.paddingMedium
+            anchors { fill: parent; margins: Theme.paddingSmall }
+            spacing: Theme.paddingSmall
 
-            IconButton {
-                id: renameButton
+            MouseArea {
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
                 anchors.verticalCenter: parent.verticalCenter
-                icon.source: "image://theme/icon-m-edit"
-                enabled: selectedIds.length === 1
-                opacity: enabled ? 1.0 : 0.4
-                onClicked: renameSelected()
+                enabled: searchField.text.length > 0
+                opacity: enabled ? 1.0 : 0.5
+                onClicked: clearSearch()
+
+                Image {
+                    anchors.centerIn: parent
+                    source: searchField.text.length > 0 ? "image://theme/icon-m-clear" : "image://theme/icon-m-search"
+                    width: Theme.iconSizeMedium
+                    height: Theme.iconSizeMedium
+                }
             }
 
-            IconButton {
-                id: deleteButton
+            TextField {
+                id: searchField
+                width: parent.width - Theme.iconSizeMedium - Theme.paddingSmall * 2
+                height: parent.height - Theme.paddingSmall * 2
                 anchors.verticalCenter: parent.verticalCenter
-                icon.source: "image://theme/icon-m-delete"
-                enabled: selectedIds.length > 0
-                opacity: enabled ? 1.0 : 0.4
-                onClicked: deleteSelected()
+                placeholderText: qsTr("Поиск по записям...")
+                color: "white"
+                font.pixelSize: Theme.fontSizeSmall
+                background: null
+                onTextChanged: {
+                    searchQuery = text
+                    filterNotes(text)
+                }
+                Keys.onEscapePressed: clearSearch()
             }
-
-            Item { width: 1; height: 1 }
         }
     }
 
-    RemorseItem { id: remorseDelete }
+    // --- Список заметок ---
+    SilicaListView {
+        id: notesListView
+        anchors {
+            top: searchBar.bottom
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+        model: filteredModel
+        delegate: noteDelegate
+        spacing: Theme.paddingSmall
 
-    Component {
-        id: headerComponent
-        Item { width: parent.width; height: Theme.paddingSmall }
+        // 1. ИСПРАВЛЕННЫЙ ПОРЯДОК ПУНКТОВ МЕНЮ
+        PullDownMenu {
+            id: pullDownMenu
+
+            MenuItem {
+                text: qsTr("О приложении")
+                onClicked: pageStack.push(Qt.resolvedUrl("AboutPage.qml"))
+            }
+
+            MenuItem {
+                text: qsTr("Сортировка")
+                onClicked: sortPopup.visible = true // Открываем маленькое окошко
+            }
+
+            MenuItem {
+                text: searchVisible
+                      ? qsTr("Скрыть поиск")
+                      : (searchQuery.length > 0 ? qsTr("Поиск: \"%1\"").arg(searchQuery) : qsTr("Показать поиск"))
+                onClicked: toggleSearch()
+            }
+
+            MenuItem {
+                text: qsTr("Очистить поиск")
+                visible: searchQuery.length > 0
+                onClicked: clearSearch()
+            }
+        }
+
+        ViewPlaceholder {
+            enabled: filteredModel.count === 0
+            text: searchQuery.length > 0 ? qsTr("Ничего не найдено") : qsTr("Нет заметок")
+            hintText: searchQuery.length > 0 ? "" : qsTr("Нажмите на микрофон, чтобы начать запись")
+        }
+
+        footer: Item {
+            width: parent.width
+            height: Theme.itemSizeLarge + Theme.paddingLarge * 2
+        }
     }
 
+    // 2. МАЛЕНЬКОЕ ОКОШКО СОРТИРОВКИ С ОБОДКОМ (вместо Dialog)
+
+    // Затемнение фона для закрытия по клику вне окна
+    MouseArea {
+        anchors.fill: parent
+        visible: sortPopup.visible
+        z: 50
+        onClicked: sortPopup.visible = false
+    }
+
+    // Само окошко сортировки
+    Rectangle {
+        id: sortPopup
+        visible: false
+        z: 51
+        width: parent.width * 0.75 // Не на весь экран, а компактное
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: header.bottom
+        anchors.topMargin: Theme.paddingMedium
+        height: sortColumn.height + Theme.paddingMedium * 2
+        color: "#1E1E1E"
+        radius: 12
+        border.color: "#FFB300" // Оранжевый ободок
+        border.width: 2
+
+        Column {
+            id: sortColumn
+            width: parent.width
+            anchors.centerIn: parent
+            spacing: Theme.paddingSmall
+
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: { applySort("date"); sortPopup.visible = false }
+                Label {
+                    anchors { left: parent.left; leftMargin: Theme.paddingLarge; verticalCenter: parent.verticalCenter }
+                    text: qsTr("По дате") + (sortField === "date" ? (sortDir === "asc" ? " ▲" : " ▼") : "")
+                    color: sortField === "date" ? "#FFB300" : "white"
+                }
+            }
+
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: { applySort("title"); sortPopup.visible = false }
+                Label {
+                    anchors { left: parent.left; leftMargin: Theme.paddingLarge; verticalCenter: parent.verticalCenter }
+                    text: qsTr("По названию") + (sortField === "title" ? (sortDir === "asc" ? " ▲" : " ▼") : "")
+                    color: sortField === "title" ? "#FFB300" : "white"
+                }
+            }
+
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: { applySort("duration"); sortPopup.visible = false }
+                Label {
+                    anchors { left: parent.left; leftMargin: Theme.paddingLarge; verticalCenter: parent.verticalCenter }
+                    text: qsTr("По длительности") + (sortField === "duration" ? (sortDir === "asc" ? " ▲" : " ▼") : "")
+                    color: sortField === "duration" ? "#FFB300" : "white"
+                }
+            }
+
+            BackgroundItem {
+                width: parent.width
+                height: Theme.itemSizeSmall
+                onClicked: { applySort("size"); sortPopup.visible = false }
+                Label {
+                    anchors { left: parent.left; leftMargin: Theme.paddingLarge; verticalCenter: parent.verticalCenter }
+                    text: qsTr("По размеру файла") + (sortField === "size" ? (sortDir === "asc" ? " ▲" : " ▼") : "")
+                    color: sortField === "size" ? "#FFB300" : "white"
+                }
+            }
+        }
+    }
+
+    // --- Делегат заметки ---
     Component {
         id: noteDelegate
         BackgroundItem {
             id: delegateItem
             width: parent.width
             height: noteColumn.height + 2 * Theme.paddingMedium
-            RemorseItem { id: remorse }
-
-            Item {
-                id: checkBox
-                anchors {
-                    right: parent.right
-                    rightMargin: Theme.horizontalPageMargin
-                    verticalCenter: parent.verticalCenter
-                }
-                width: Theme.iconSizeMedium
-                height: Theme.iconSizeMedium
-
-                Image {
-                    anchors.fill: parent
-                    source: "image://theme/icon-m-play"
-                    visible: !mainPage.selectionMode
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    radius: width / 2
-                    color: "transparent"
-                    border.color: Theme.secondaryColor
-                    border.width: 3
-                    visible: mainPage.selectionMode && !isSelected(noteId)
-                }
-
-                Image {
-                    anchors.fill: parent
-                    source: "image://theme/icon-m-acknowledge"
-                    visible: mainPage.selectionMode && isSelected(noteId)
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        if (mainPage.selectionMode) {
-                            mainPage.toggleSelection(noteId)
-                        } else {
-                            // Воспроизведение можно добавить позже
-                        }
-                    }
-                }
-            }
 
             Column {
                 id: noteColumn
                 x: Theme.horizontalPageMargin
                 y: Theme.paddingMedium
-                width: parent.width - 2 * Theme.horizontalPageMargin - Theme.iconSizeMedium - Theme.paddingMedium
+                width: parent.width - 2 * Theme.horizontalPageMargin
+
+                Row {
+                    width: parent.width
+                    spacing: Theme.paddingSmall
+
+                    Rectangle {
+                        width: selectionMode ? Theme.iconSizeMedium : 0
+                        height: Theme.iconSizeMedium
+                        color: "transparent"
+                        visible: selectionMode
+                        border.color: isSelected(noteId) ? "#FFB300" : "#666"
+                        border.width: 2
+                        radius: 4
+
+                        Image {
+                            anchors.centerIn: parent
+                            source: "image://theme/icon-m-acknowledge"
+                            visible: isSelected(noteId)
+                            width: parent.width * 0.6
+                            height: parent.height * 0.6
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: toggleSelection(noteId)
+                        }
+                    }
+
+                    Label {
+                        width: parent.width - (selectionMode ? Theme.iconSizeMedium + Theme.paddingSmall : 0)
+                        text: title
+                        color: delegateItem.highlighted ? "#FFB300" : "white"
+                        font.pixelSize: Theme.fontSizeMedium
+                        font.bold: true
+                        truncationMode: TruncationMode.Fade
+                    }
+                }
+
+                Item { width: 1; height: Theme.paddingSmall }
+
+                Row {
+                    width: parent.width
+                    spacing: Theme.paddingMedium
+                    Label { text: date; color: "#888"; font.pixelSize: Theme.fontSizeExtraSmall }
+                    Label { text: duration; color: "#888"; font.pixelSize: Theme.fontSizeExtraSmall }
+                    Label {
+                        text: fileSize
+                        color: "#888"
+                        font.pixelSize: Theme.fontSizeExtraSmall
+                        visible: fileSize !== undefined && fileSize !== ""
+                    }
+                }
+
+                Item { width: 1; height: Theme.paddingSmall }
 
                 Label {
                     width: parent.width
-                    text: title
-                    color: delegateItem.highlighted ? Theme.highlightColor : Theme.primaryColor
-                    font.pixelSize: Theme.fontSizeMedium
-                    truncationMode: TruncationMode.Fade
-                }
-                Item { width: 1; height: Theme.paddingSmall }
-                Row {
-                    width: parent.width; spacing: Theme.paddingMedium
-                    Label { text: date; color: Theme.secondaryColor; font.pixelSize: Theme.fontSizeExtraSmall }
-                    Label { text: duration; color: Theme.secondaryColor; font.pixelSize: Theme.fontSizeExtraSmall }
-                }
-                Item { width: 1; height: Theme.paddingSmall }
-                Label {
-                    width: parent.width; text: preview
-                    color: Theme.secondaryColor; font.pixelSize: Theme.fontSizeSmall
-                    maximumLineCount: 2; truncationMode: TruncationMode.Elide; wrapMode: Text.WordWrap
+                    text: preview
+                    color: "#AAA"
+                    font.pixelSize: Theme.fontSizeSmall
+                    maximumLineCount: 2
+                    truncationMode: TruncationMode.Elide
+                    wrapMode: Text.WordWrap
                 }
             }
 
             onClicked: {
-                if (mainPage.selectionMode) {
-                    mainPage.toggleSelection(noteId)
+                if (selectionMode) {
+                    toggleSelection(noteId)
                 } else {
                     pageStack.push(Qt.resolvedUrl("NoteViewPage.qml"), {
                         noteId: noteId, noteTitle: title, noteDate: date,
@@ -489,30 +465,36 @@ Page {
             }
 
             onPressAndHold: {
-                if (!mainPage.selectionMode) mainPage.enterSelectionMode(noteId)
+                if (!selectionMode) enterSelectionMode(noteId)
+            }
+
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 1
+                color: "#333"
+                opacity: 0.3
             }
         }
     }
 
-    Label { id: emptyLabel; visible: false }
+    RemorseItem { id: remorseDelete }
 
-    // Плавающая кнопка записи
+    // --- Плавающая кнопка записи по центру ---
     Rectangle {
         id: recordButton
         anchors {
-            right: parent.right; bottom: parent.bottom
-            rightMargin: Theme.paddingLarge; bottomMargin: Theme.paddingLarge
+            horizontalCenter: parent.horizontalCenter
+            bottom: parent.bottom
+            bottomMargin: Theme.paddingLarge
         }
-        width: Theme.itemSizeLarge; height: Theme.itemSizeLarge
+        width: Theme.itemSizeLarge
+        height: Theme.itemSizeLarge
         radius: width / 2
         gradient: Gradient {
             GradientStop { position: 0.0; color: "#FFB300" }
             GradientStop { position: 1.0; color: "#FF8F00" }
         }
-        visible: !selectionMode
-
-        // Исправление: добавлен импорт QtGraphicalEffects в начало файла
-        // и корректное использование DropShadow
+        z: 100
         layer.enabled: true
         layer.effect: DropShadow {
             color: "#80000000"
@@ -531,5 +513,87 @@ Page {
             height: parent.height
             onClicked: pageStack.push(Qt.resolvedUrl("RecordingPage.qml"))
         }
+    }
+
+    // --- Нижняя панель для режима выбора ---
+    Rectangle {
+        id: bottomBar
+        anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+        height: selectionMode ? Theme.itemSizeMedium : 0
+        color: "#1E1E1E"
+        visible: selectionMode
+        z: 10
+        clip: true
+
+        Behavior on height { NumberAnimation { duration: 200 } }
+
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: 1
+            color: "#FFB300"
+            opacity: 0.3
+        }
+
+        Row {
+            anchors { fill: parent; leftMargin: Theme.paddingMedium; rightMargin: Theme.paddingMedium }
+            spacing: Theme.paddingMedium
+
+            IconButton {
+                id: cancelButton
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "image://theme/icon-m-cancel"
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                onClicked: exitSelectionMode()
+            }
+
+            Item { width: 1; height: 1 }
+
+            IconButton {
+                id: deleteButton
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: "image://theme/icon-m-delete"
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                enabled: selectedIds.length > 0
+                opacity: enabled ? 1.0 : 0.4
+                onClicked: deleteSelected()
+            }
+
+            Item { width: 1; height: 1 }
+
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Выбрано: %1").arg(selectedIds.length)
+                color: "#FFB300"
+                font.pixelSize: Theme.fontSizeSmall
+            }
+
+            Item { width: 1; height: 1 }
+
+            IconButton {
+                id: selectAllButton
+                anchors.verticalCenter: parent.verticalCenter
+                icon.source: allSelected ? "image://theme/icon-m-clear" : "image://theme/icon-m-add"
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                onClicked: selectAll()
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        modelLoaded = true
+        reloadNotes()
+        appWindow.mainPage = mainPage
+    }
+
+    onStatusChanged: {
+        if (status === PageStatus.Active) reloadNotes()
+    }
+
+    Connections {
+        target: SpeechRecognizer
+        onFinished: reloadNotes()
     }
 }

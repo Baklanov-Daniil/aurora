@@ -1,6 +1,6 @@
 import QtQuick 2.0
 import Sailfish.Silica 1.0
-import ru.omstu.voicenotes 1.0
+import ru.omstu.goloslov 1.0
 import "../Database.js" as Db
 
 CoverBackground {
