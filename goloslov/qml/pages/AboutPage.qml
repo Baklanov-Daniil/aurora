@@ -1,49 +1,55 @@
 import QtQuick 2.0
-import Sailfish.Silica 1.0
+import QtQuick.Controls 1.4
 
 Page {
-    objectName: "aboutPage"
+    id: aboutPage
     allowedOrientations: Orientation.All
 
-    SilicaFlickable {
-        objectName: "flickable"
+    Rectangle {
         anchors.fill: parent
-        contentHeight: layout.height + Theme.paddingLarge
+        color: "#121212"
+    }
 
-        Column {
-            id: layout
-            objectName: "layout"
+    Column {
+        anchors.centerIn: parent
+        width: parent.width * 0.8
+        spacing: Theme.paddingLarge
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: qsTr("Голослов")
+            color: "white"
+            font.pixelSize: Theme.fontSizeExtraLarge
+            font.bold: true
+        }
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: qsTr("Офлайн-диктофон с распознаванием речи")
+            color: "#888"
+            font.pixelSize: Theme.fontSizeMedium
+        }
+
+        Rectangle {
             width: parent.width
+            height: 1
+            color: "#333"
+        }
 
-            PageHeader {
-                objectName: "pageHeader"
-                title: qsTr("About Application")
-            }
+        Label {
+            width: parent.width
+            text: qsTr("Версия 1.0\n\nИспользуемые библиотеки: Qt, Vosk\n\nМодель распознавания: Vosk (https://alphacephei.com/vosk/)")
+            color: "#AAA"
+            font.pixelSize: Theme.fontSizeSmall
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+        }
 
-            Label {
-                objectName: "descriptionText"
-                anchors { left: parent.left; right: parent.right; margins: Theme.horizontalPageMargin }
-                color: palette.highlightColor
-                font.pixelSize: Theme.fontSizeSmall
-                textFormat: Text.RichText
-                wrapMode: Text.WordWrap
-                text: qsTr("#descriptionText")
-            }
-
-            SectionHeader {
-                objectName: "licenseHeader"
-                text: qsTr("3-Clause BSD License")
-            }
-
-            Label {
-                objectName: "licenseText"
-                anchors { left: parent.left; right: parent.right; margins: Theme.horizontalPageMargin }
-                color: palette.highlightColor
-                font.pixelSize: Theme.fontSizeSmall
-                textFormat: Text.RichText
-                wrapMode: Text.WordWrap
-                text: qsTr("#licenseText")
-            }
+        IconButton {
+            anchors.horizontalCenter: parent.horizontalCenter
+            icon.source: "image://theme/icon-m-back"
+            icon.color: "white"
+            onClicked: pageStack.pop()
         }
     }
 }
