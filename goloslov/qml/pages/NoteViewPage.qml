@@ -7,7 +7,6 @@ import "../Database.js" as Db
 
 Page {
     id: noteViewPage
-    objectName: "noteViewPage"
     allowedOrientations: Orientation.All
 
     property int noteId: -1
@@ -16,6 +15,8 @@ Page {
     property string noteText: ""
     property string noteDuration: ""
     property string noteAudio: ""
+
+    property bool renameVisible: false
 
     function formatTime(seconds) {
         var s = Math.floor(seconds)
@@ -26,9 +27,7 @@ Page {
 
     function sanitizeFileName(name) {
         var clean = name.replace(/[^0-9A-Za-zА-Яа-яЁё _-]/g, "_")
-        if (clean.length === 0) {
-            clean = "note"
-        }
+        if (clean.length === 0) clean = "note"
         return clean
     }
 
@@ -59,230 +58,232 @@ Page {
         notificationPanel.publish()
     }
 
+    function showRenameField() {
+        renameVisible = true
+        renameField.text = noteTitle
+        renameField.forceActiveFocus()
+    }
+
+    function applyRename() {
+        var newTitle = renameField.text.trim()
+        if (newTitle.length > 0 && noteId >= 0) {
+            Db.updateNoteTitle(noteId, newTitle)
+            noteTitle = newTitle
+            notificationPanel.previewBody = qsTr("Запись переименована")
+            notificationPanel.publish()
+        }
+        renameVisible = false
+    }
+
+    function cancelRename() {
+        renameVisible = false
+    }
+
     Audio {
         id: audioPlayer
         source: noteAudio
         autoLoad: true
     }
 
-    // --- Фоновая область для закрытия меню при клике мимо него ---
-    MouseArea {
-        id: menuDismissArea
-        anchors.fill: parent
-        visible: dropdownMenu.visible
-        z: 99
-        onClicked: dropdownMenu.visible = false
-    }
-
-    // --- Фиксированная верхняя панель вместо старого PageHeader ---
-    Item {
-        id: topBar
-        width: parent.width
-        height: Theme.itemSizeMedium
-        anchors.top: parent.top
-        z: 100
-
-        IconButton {
-            id: menuButton
-            anchors {
-                right: parent.right
-                verticalCenter: parent.verticalCenter
-                rightMargin: Theme.horizontalPageMargin
-            }
-            icon.source: "image://theme/icon-m-more"
-            onClicked: dropdownMenu.visible = !dropdownMenu.visible
-        }
-    }
-
-    // --- Кастомное выпадающее меню на три точки ---
     Rectangle {
-        id: dropdownMenu
-        visible: false
-        z: 101
-        width: Theme.itemSizeLarge * 3.5
-        height: menuColumn.height + Theme.paddingMedium * 2
-        color: Theme.overlayBackgroundColor // Специальный цвет темы для перекрывающих меню
-        radius: 12
-        border.color: Theme.rgba(Theme.secondaryColor, 0.3) // Рамка по всему периметру
-        border.width: 1
+        anchors.fill: parent
+        color: "#121212"
+    }
 
-        anchors {
-            top: topBar.bottom
-            right: parent.right
-            rightMargin: Theme.horizontalPageMargin
-        }
+    Rectangle {
+        id: header
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: Theme.itemSizeLarge + Theme.paddingLarge
+        color: "#1E1E1E"
+        z: 10
 
-        Column {
-            id: menuColumn
-            width: parent.width
-            anchors.centerIn: parent
+        Row {
+            anchors { fill: parent; margins: Theme.paddingMedium }
+            spacing: Theme.paddingSmall
 
-            BackgroundItem {
-                width: parent.width
-                height: Theme.itemSizeSmall
-                onClicked: {
-                    dropdownMenu.visible = false
-                    copyToClipboard()
-                }
-                Label {
-                    anchors {
-                        left: parent.left
-                        leftMargin: Theme.paddingLarge
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: qsTr("Копировать текст")
-                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
-                    font.pixelSize: Theme.fontSizeSmall
-                }
+            IconButton {
+                icon.source: "image://theme/icon-m-back"
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: pageStack.pop()
             }
 
-            BackgroundItem {
-                width: parent.width
-                height: Theme.itemSizeSmall
-                onClicked: {
-                    dropdownMenu.visible = false
-                    exportToFile()
-                }
-                Label {
-                    anchors {
-                        left: parent.left
-                        leftMargin: Theme.paddingLarge
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: qsTr("Экспортировать в файл")
-                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
-                    font.pixelSize: Theme.fontSizeSmall
-                }
+            Item { width: 1; height: 1; }
+
+            Label {
+                text: qsTr("Заметка")
+                color: "#FFB300"
+                font.pixelSize: Theme.fontSizeLarge
+                font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
             }
 
-            BackgroundItem {
-                width: parent.width
-                height: Theme.itemSizeSmall
+            Item { width: 1; height: 1; }
+
+            // Кнопка ПЕРЕИМЕНОВАТЬ
+            IconButton {
+                icon.source: "image://theme/icon-m-edit"
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: showRenameField()
+            }
+
+            // Кнопка КОПИРОВАТЬ
+            IconButton {
+                icon.source: "image://theme/icon-m-copy"
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: copyToClipboard()
+            }
+
+            // Кнопка УДАЛИТЬ
+            IconButton {
+                icon.source: "image://theme/icon-m-delete"
+                anchors.verticalCenter: parent.verticalCenter
                 onClicked: {
-                    dropdownMenu.visible = false
-                    remorse.execute(qsTr("Удаление заметки"), function() {
-                        if (noteId >= 0) {
-                            Db.deleteNote(noteId)
-                        }
+                    remorse.execute(qsTr("Удалить заметку"), function() {
+                        if (noteId >= 0) Db.deleteNote(noteId)
                         pageStack.pop()
                     })
                 }
-                Label {
-                    anchors {
-                        left: parent.left
-                        leftMargin: Theme.paddingLarge
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: qsTr("Удалить заметку")
-                    color: parent.down ? Theme.highlightColor : Theme.primaryColor
-                    font.pixelSize: Theme.fontSizeSmall
+            }
+        }
+    }
+
+    // --- INLINE-поле переименования ---
+    Rectangle {
+        id: renameBar
+        anchors { top: header.bottom; left: parent.left; right: parent.right }
+        height: renameVisible ? Theme.itemSizeMedium + Theme.paddingSmall * 2 : 0
+        color: "#1E1E1E"
+        z: 20
+        clip: true
+
+        Behavior on height {
+            NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+        }
+
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: 1
+            color: "#FFB300"
+            opacity: 0.5
+        }
+
+        Row {
+            anchors { fill: parent; margins: Theme.paddingSmall }
+            spacing: Theme.paddingSmall
+
+            MouseArea {
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: cancelRename()
+                Image {
+                    anchors.centerIn: parent
+                    source: "image://theme/icon-m-cancel"
+                    width: Theme.iconSizeMedium
+                    height: Theme.iconSizeMedium
+                }
+            }
+
+            TextField {
+                id: renameField
+                width: parent.width - Theme.iconSizeMedium * 2 - Theme.paddingSmall * 3
+                height: parent.height - Theme.paddingSmall * 2
+                anchors.verticalCenter: parent.verticalCenter
+                placeholderText: qsTr("Новое название...")
+                color: "white"
+                font.pixelSize: Theme.fontSizeSmall
+                background: null
+                Keys.onReturnPressed: applyRename()
+                Keys.onEnterPressed: applyRename()
+            }
+
+            MouseArea {
+                width: Theme.iconSizeMedium
+                height: Theme.iconSizeMedium
+                anchors.verticalCenter: parent.verticalCenter
+                enabled: renameField.text.trim().length > 0
+                opacity: enabled ? 1.0 : 0.4
+                onClicked: applyRename()
+                Image {
+                    anchors.centerIn: parent
+                    source: "image://theme/icon-m-acknowledge"
+                    width: Theme.iconSizeMedium
+                    height: Theme.iconSizeMedium
                 }
             }
         }
     }
 
     SilicaFlickable {
-        id: flickable
-        anchors.fill: parent
+        anchors {
+            top: renameBar.bottom
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
         contentHeight: column.height + Theme.paddingLarge
-
-        RemorsePopup { id: remorse }
 
         Column {
             id: column
             width: parent.width
-            spacing: Theme.paddingLarge
+            spacing: Theme.paddingMedium
 
-            // Отступ сверху, чтобы контент плавно уходил под фиксированную кнопку меню при скролле
-            Item {
-                width: parent.width
-                height: Theme.itemSizeMedium
+            // Заголовок заметки (ИСПРАВЛЕНО ВЫРАВНИВАНИЕ)
+            Label {
+                width: parent.width - 2 * Theme.paddingMedium
+                x: Theme.paddingMedium
+                text: noteTitle
+                color: "#FFB300"
+                font.pixelSize: Theme.fontSizeExtraLarge
+                font.bold: true
+                wrapMode: Text.WordWrap
+                verticalAlignment: Text.AlignVCenter // <-- ЭТО ИСПРАВЛЯЕТ СМЕЩЕНИЕ ВВЕРХ
             }
 
-            // --- Блок заголовка и метаданных ---
-            Column {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                spacing: Theme.paddingSmall
-
-                Label {
-                    id: titleLabel
-                    width: parent.width
-                    text: noteTitle
-                    color: Theme.highlightColor
-                    font.pixelSize: Theme.fontSizeExtraLarge
-                    font.weight: Font.Bold
-                    wrapMode: Text.WordWrap
-                }
-
-                Row {
-                    width: parent.width
-                    spacing: Theme.paddingMedium
-
-                    Label {
-                        text: noteDate
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                    }
-                    Label {
-                        text: "•"
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        visible: noteDuration !== ""
-                    }
-                    Label {
-                        text: noteDuration
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        visible: noteDuration !== ""
-                    }
-                }
+            Row {
+                x: Theme.paddingMedium
+                width: parent.width - 2 * Theme.paddingMedium
+                spacing: Theme.paddingMedium
+                Label { text: noteDate; color: "#888"; font.pixelSize: Theme.fontSizeSmall }
+                Label { text: noteDuration; color: "#888"; font.pixelSize: Theme.fontSizeSmall }
             }
 
-            // --- Блок аудиоплеера (Карточка) ---
             Item {
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                height: playerBackground.height
+                width: parent.width - 2 * Theme.paddingMedium
+                x: Theme.paddingMedium
+                height: noteAudio !== "" ? playerBackground.height : 0
                 visible: noteAudio !== ""
 
                 Rectangle {
                     id: playerBackground
                     width: parent.width
                     height: playerControls.height + Theme.paddingMedium * 2
-                    color: Theme.rgba(Theme.highlightBackgroundColor, 0.1)
-                    radius: 12
+                    color: "#1E1E1E"
+                    radius: 8
 
                     Row {
                         id: playerControls
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            verticalCenter: parent.verticalCenter
-                            margins: Theme.paddingMedium
-                        }
+                        anchors { fill: parent; margins: Theme.paddingMedium }
                         spacing: Theme.paddingMedium
 
                         IconButton {
                             id: playButton
                             icon.source: audioPlayer.playbackState === Audio.PlayingState
-                                          ? "image://theme/icon-m-pause"
-                                          : "image://theme/icon-m-play"
-                            icon.width: Theme.iconSizeMedium
-                            icon.height: Theme.iconSizeMedium
-                            width: Theme.itemSizeSmall
-                            height: Theme.itemSizeSmall
+                                         ? "image://theme/icon-m-pause"
+                                         : "image://theme/icon-m-play"
+                            width: Theme.iconSizeMedium
+                            height: Theme.iconSizeMedium
+                            anchors.verticalCenter: parent.verticalCenter
                             onClicked: {
-                                if (audioPlayer.playbackState === Audio.PlayingState) {
+                                if (audioPlayer.playbackState === Audio.PlayingState)
                                     audioPlayer.pause()
-                                } else {
+                                else
                                     audioPlayer.play()
-                                }
                             }
                         }
 
                         Item {
-                            width: parent.width - playButton.width - timeLabel.width - Theme.paddingMedium * 2
+                            width: parent.width - playButton.width - timeLabel.width - 2 * Theme.paddingMedium
                             height: Theme.itemSizeSmall
                             anchors.verticalCenter: parent.verticalCenter
 
@@ -294,12 +295,8 @@ Page {
                                 maximumValue: audioPlayer.duration > 0 ? audioPlayer.duration : 1
                                 stepSize: 1
                                 enabled: audioPlayer.seekable
-                                handleVisible: true
-
                                 onDownChanged: {
-                                    if (!down) {
-                                        audioPlayer.seek(value)
-                                    }
+                                    if (!down) audioPlayer.seek(value)
                                 }
                             }
 
@@ -315,33 +312,53 @@ Page {
                             id: timeLabel
                             anchors.verticalCenter: parent.verticalCenter
                             text: formatTime(audioPlayer.position / 1000)
-                            color: Theme.secondaryColor
+                            color: "#888"
                             font.pixelSize: Theme.fontSizeExtraSmall
                         }
                     }
                 }
             }
 
-            // --- Блок текста (Расшифровка) ---
             Label {
                 id: transcriptionText
-                x: Theme.horizontalPageMargin
-                width: parent.width - 2 * Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.paddingMedium
+                x: Theme.paddingMedium
                 text: noteText
-                color: Theme.primaryColor
+                color: "#DDD"
                 font.pixelSize: Theme.fontSizeMedium
                 wrapMode: Text.WordWrap
                 textFormat: Text.PlainText
                 visible: noteText !== ""
+            }
+
+            Column {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                spacing: Theme.paddingMedium
+                visible: noteText !== ""
+
+                Button {
+                    width: parent.width
+                    text: qsTr("Копировать текст в буфер")
+                    onClicked: copyToClipboard()
+                }
+
+                Button {
+                    width: parent.width
+                    text: qsTr("Сохранить текст в файл")
+                    onClicked: exportToFile()
+                }
             }
         }
 
         VerticalScrollDecorator {}
     }
 
-    Component.onDestruction: audioPlayer.stop()
+    RemorsePopup { id: remorse }
 
     Notification {
         id: notificationPanel
     }
+
+    Component.onDestruction: audioPlayer.stop()
 }

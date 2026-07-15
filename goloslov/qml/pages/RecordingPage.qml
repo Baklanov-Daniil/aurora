@@ -6,10 +6,7 @@ import "../Database.js" as Db
 
 Page {
     id: recordingPage
-    objectName: "recordingPage"
     allowedOrientations: Orientation.All
-
-    property int recordDuration: 0
 
     function formatTime(seconds) {
         var s = Math.floor(seconds)
@@ -20,10 +17,8 @@ Page {
 
     Connections {
         target: SpeechRecognizer
-
         onFinished: {
             var clean = text ? text.trim() : ""
-            // Note is saved centrally by ApplicationWindow
             pageStack.replace(Qt.resolvedUrl("NoteViewPage.qml"), {
                 noteId: appWindow.lastNoteId,
                 noteTitle: qsTr("Запись от %1").arg(Qt.formatDateTime(new Date(), "dd.MM.yyyy hh:mm")),
@@ -33,232 +28,241 @@ Page {
                 noteAudio: audioPath
             })
         }
-
         onErrorOccurred: {
             statusNotification.previewBody = message
             statusNotification.publish()
         }
     }
 
-    SilicaFlickable {
+    Rectangle {
         anchors.fill: parent
-        contentHeight: column.height
+        color: "#121212"
+    }
 
-        Column {
-            id: column
-            width: parent.width
+    Rectangle {
+        id: header
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        height: Theme.itemSizeLarge + Theme.paddingLarge
+        color: "#1E1E1E"
+        z: 10
 
-            PageHeader {
-                title: qsTr("")
+        Row {
+            anchors { fill: parent; margins: Theme.paddingMedium }
+            spacing: Theme.paddingSmall
+
+            IconButton {
+                icon.source: "image://theme/icon-m-back"
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: pageStack.pop()
             }
 
-            // Signal level visualization
-            Item {
-                id: signalLevelContainer
-                width: parent.width
-                height: Theme.itemSizeExtraLarge * 2
-                visible: SpeechRecognizer.recording
+            Item { width: 1; height: 1; }
 
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: Theme.itemSizeExtraLarge * 1.5
-                    height: Theme.itemSizeExtraLarge * 1.5
-                    radius: width / 2
-                    color: Qt.rgba(Theme.highlightColor.r, Theme.highlightColor.g, Theme.highlightColor.b, 0.1)
-                    border.color: Theme.highlightColor
-                    border.width: 2
-                }
-
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: Theme.itemSizeMedium + SpeechRecognizer.level * Theme.itemSizeLarge
-                    height: Theme.itemSizeMedium + SpeechRecognizer.level * Theme.itemSizeLarge
-                    radius: width / 2
-                    color: SpeechRecognizer.level < 0.7 ? Theme.highlightColor : Theme.errorColor
-                    opacity: 0.3 + SpeechRecognizer.level * 0.5
-                }
-
-                Label {
-                    anchors.centerIn: parent
-                    text: qsTr("MIC")
-                    color: Theme.highlightColor
-                    font.pixelSize: Theme.fontSizeLarge
-                    font.weight: Font.Bold
-                }
-            }
-
-            // Duration display
             Label {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: formatTime(SpeechRecognizer.durationSec)
-                color: SpeechRecognizer.recording ? Theme.errorColor : Theme.primaryColor
-                font.pixelSize: Theme.fontSizeExtraLarge
-                font.weight: Font.Light
-                visible: SpeechRecognizer.recording
+                text: qsTr("Запись")
+                color: "#FFB300"
+                font.pixelSize: Theme.fontSizeLarge
+                font.bold: true
+                anchors.verticalCenter: parent.verticalCenter
             }
+        }
+    }
 
-            Item { width: 1; height: Theme.paddingLarge }
+    // --- ПУЛЬСИРУЮЩИЙ КРУГ (Индикатор уровня шума) ---
+    Item {
+        id: audioIndicator
+        anchors {
+            top: header.bottom
+            topMargin: Theme.paddingLarge * 2
+            horizontalCenter: parent.horizontalCenter
+        }
+        width: Theme.itemSizeExtraLarge * 2
+        height: width
+        visible: SpeechRecognizer.recording
 
-            // Control buttons row: Cancel | Pause | Record/Stop
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: Theme.paddingLarge
+        // Фоновый круг (трек)
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: Qt.rgba(1, 0.7, 0, 0.1)
+            border.color: "#FFB300"
+            border.width: 2
+        }
 
-                Rectangle {
-                    width: Theme.itemSizeExtraLarge * 1.2
-                    height: Theme.itemSizeExtraLarge * 1.2
-                    radius: width / 2
-                    color: Qt.rgba(Theme.errorColor.r, Theme.errorColor.g, Theme.errorColor.b, 0.8)
-                    visible: SpeechRecognizer.recording || SpeechRecognizer.finalizing
+        // Пульсирующий круг (заполнение)
+        Rectangle {
+            anchors.centerIn: parent
+            // Размер меняется от 30% до 80% в зависимости от уровня громкости
+            width: parent.width * (0.3 + SpeechRecognizer.level * 0.5)
+            height: width
+            radius: width / 2
+            color: SpeechRecognizer.level < 0.7 ? "#FFB300" : "#FF5722" // Оранжевый -> красноватый на пике
+            opacity: 0.4 + SpeechRecognizer.level * 0.6
 
-                    IconButton {
-                        anchors.centerIn: parent
-                        icon.source: "image://theme/icon-m-cancel"
-                        icon.width: Theme.iconSizeLarge
-                        icon.height: Theme.iconSizeLarge
-                        width: parent.width
-                        height: parent.height
-                        onClicked: SpeechRecognizer.cancel()
-                    }
-                }
-
-                Rectangle {
-                    width: Theme.itemSizeExtraLarge * 1.2
-                    height: Theme.itemSizeExtraLarge * 1.2
-                    radius: width / 2
-                    color: Theme.highlightColor
-                    opacity: (SpeechRecognizer.recording && !SpeechRecognizer.finalizing) ? 0.7 : 0.3
-                    visible: SpeechRecognizer.recording
-
-                    IconButton {
-                        anchors.centerIn: parent
-                        icon.source: SpeechRecognizer.paused ? "image://theme/icon-m-play"
-                                                             : "image://theme/icon-m-pause"
-                        icon.width: Theme.iconSizeLarge
-                        icon.height: Theme.iconSizeLarge
-                        width: parent.width
-                        height: parent.height
-                        enabled: SpeechRecognizer.recording && !SpeechRecognizer.finalizing
-                        onClicked: {
-                            if (SpeechRecognizer.paused) {
-                                SpeechRecognizer.resume()
-                            } else {
-                                SpeechRecognizer.pause()
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: Theme.itemSizeExtraLarge * 1.2
-                    height: Theme.itemSizeExtraLarge * 1.2
-                    radius: width / 2
-                    color: SpeechRecognizer.recording ? Theme.errorColor : Theme.highlightColor
-                    opacity: (SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing) ? 1.0 : 0.4
-                    visible: !SpeechRecognizer.finalizing
-
-                    IconButton {
-                        anchors.centerIn: parent
-                        icon.source: SpeechRecognizer.recording ? "image://theme/icon-m-stop"
-                                                           : "image://theme/icon-m-mic"
-                        icon.width: Theme.iconSizeLarge
-                        icon.height: Theme.iconSizeLarge
-                        width: parent.width
-                        height: parent.height
-                        enabled: SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing
-                        onClicked: {
-                            if (SpeechRecognizer.recording) {
-                                SpeechRecognizer.stop()
-                            } else {
-                                SpeechRecognizer.start()
-                            }
-                        }
-                    }
-                }
+            // Плавная анимация изменения размера и прозрачности
+            Behavior on width {
+                NumberAnimation { duration: 100; easing.type: Easing.OutQuad }
             }
-
-            // Model loading indicator (moved below buttons)
-            Item {
-                width: parent.width
-                height: Theme.itemSizeExtraLarge
-                visible: SpeechRecognizer.loading
-
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    running: SpeechRecognizer.loading
-                    size: BusyIndicatorSize.Medium
-                }
-            }
-
-            Item { width: 1; height: Theme.paddingLarge }
-
-            // Live transcription (moved below buttons)
-            Item {
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                anchors.horizontalCenter: parent.horizontalCenter
-                height: liveColumn.height
-                visible: SpeechRecognizer.recording || SpeechRecognizer.finalizing
-
-                Column {
-                    id: liveColumn
-                    width: parent.width
-
-                    Label {
-                        width: parent.width
-                        text: SpeechRecognizer.finalizing ? qsTr("Завершаем расшифровку...")
-                                                    : qsTr("Распознавание речи...")
-                        color: Theme.secondaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    Item { width: 1; height: Theme.paddingSmall }
-
-                    ProgressBar {
-                        width: parent.width
-                        indeterminate: true
-                        visible: SpeechRecognizer.finalizing
-                    }
-
-                    Item { width: 1; height: Theme.paddingSmall }
-
-                    Label {
-                        width: parent.width
-                        text: {
-                            var acc = SpeechRecognizer.fullText
-                            var part = SpeechRecognizer.partialText
-                            if (part.length > 0)
-                                return (acc.length > 0 ? acc + " " : "") + part
-                            return acc
-                        }
-                        color: Theme.primaryColor
-                        font.pixelSize: Theme.fontSizeSmall
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                        visible: text.length > 0
-                    }
-                }
-            }
-
-            // Hint label – hidden only while recording
-            Label {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: parent.width - 2 * Theme.horizontalPageMargin
-                text: {
-                    if (SpeechRecognizer.loading) return qsTr("Загрузка модели распознавания...")
-                    if (!SpeechRecognizer.modelReady) return qsTr("Модель распознавания недоступна")
-                    if (SpeechRecognizer.finalizing) return qsTr("Ожидайте завершения расшифровки")
-                    return qsTr("Нажмите на микрофон, чтобы начать запись")
-                }
-                color: Theme.secondaryColor
-                font.pixelSize: Theme.fontSizeExtraSmall
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.WordWrap
-                visible: !SpeechRecognizer.recording
+            Behavior on opacity {
+                NumberAnimation { duration: 100; easing.type: Easing.OutQuad }
             }
         }
 
-        VerticalScrollDecorator {}
+        Label {
+            anchors.centerIn: parent
+            text: qsTr("MIC")
+            color: "#FFB300"
+            font.pixelSize: Theme.fontSizeLarge
+            font.bold: true
+        }
+    }
+
+    // --- Длительность записи ---
+    Label {
+        anchors {
+            horizontalCenter: parent.horizontalCenter
+            top: audioIndicator.bottom
+            topMargin: Theme.paddingLarge
+        }
+        text: formatTime(SpeechRecognizer.durationSec)
+        color: SpeechRecognizer.recording ? "#FFB300" : "white"
+        font.pixelSize: Theme.fontSizeExtraLarge
+        font.weight: Font.Light
+        visible: SpeechRecognizer.recording
+    }
+
+    // --- Живая расшифровка ---
+    Rectangle {
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: audioIndicator.bottom
+            bottom: controlsRow.top
+            margins: Theme.paddingLarge
+        }
+        color: "#1E1E1E"
+        radius: 8
+        visible: SpeechRecognizer.recording || SpeechRecognizer.finalizing
+
+        Column {
+            id: liveColumn
+            anchors { fill: parent; margins: Theme.paddingMedium }
+            spacing: Theme.paddingSmall
+
+            Label {
+                width: parent.width
+                text: SpeechRecognizer.finalizing ? qsTr("Завершаем расшифровку...") : qsTr("Распознавание...")
+                color: "#888"
+                font.pixelSize: Theme.fontSizeSmall
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            ProgressBar {
+                width: parent.width
+                indeterminate: true
+                visible: SpeechRecognizer.finalizing
+                height: Theme.paddingSmall
+            }
+
+            Label {
+                width: parent.width
+                text: {
+                    var acc = SpeechRecognizer.fullText
+                    var part = SpeechRecognizer.partialText
+                    if (part.length > 0)
+                        return (acc.length > 0 ? acc + " " : "") + part
+                    return acc
+                }
+                color: "white"
+                font.pixelSize: Theme.fontSizeSmall
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                visible: text.length > 0
+            }
+        }
+    }
+
+    // --- Кнопки управления (Ваш вариант с адаптацией под оранжевую тему) ---
+    Row {
+        id: controlsRow
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: Theme.paddingLarge
+            horizontalCenter: parent.horizontalCenter
+        }
+        spacing: Theme.paddingLarge
+
+        // Отмена
+        Rectangle {
+            width: Theme.itemSizeExtraLarge * 1.2
+            height: Theme.itemSizeExtraLarge * 1.2
+            radius: width / 2
+            color: Qt.rgba(0.8, 0.2, 0.2, 0.8)
+            visible: SpeechRecognizer.recording || SpeechRecognizer.finalizing
+
+            IconButton {
+                anchors.centerIn: parent
+                icon.source: "image://theme/icon-m-cancel"
+                icon.width: Theme.iconSizeLarge
+                icon.height: Theme.iconSizeLarge
+                width: parent.width
+                height: parent.height
+                onClicked: SpeechRecognizer.cancel()
+            }
+        }
+
+        // Пауза
+        Rectangle {
+            width: Theme.itemSizeExtraLarge * 1.2
+            height: Theme.itemSizeExtraLarge * 1.2
+            radius: width / 2
+            color: "#FFB300"
+            opacity: (SpeechRecognizer.recording && !SpeechRecognizer.finalizing) ? 1.0 : 0.3
+            visible: SpeechRecognizer.recording
+
+            IconButton {
+                anchors.centerIn: parent
+                icon.source: SpeechRecognizer.paused ? "image://theme/icon-m-play" : "image://theme/icon-m-pause"
+                icon.width: Theme.iconSizeLarge
+                icon.height: Theme.iconSizeLarge
+                width: parent.width
+                height: parent.height
+                enabled: SpeechRecognizer.recording && !SpeechRecognizer.finalizing
+                onClicked: {
+                    if (SpeechRecognizer.paused)
+                        SpeechRecognizer.resume()
+                    else
+                        SpeechRecognizer.pause()
+                }
+            }
+        }
+
+        // Старт/Стоп (Ваш запрошенный шаблон)
+        Rectangle {
+            width: Theme.itemSizeExtraLarge * 1.2
+            height: Theme.itemSizeExtraLarge * 1.2
+            radius: width / 2
+            color: SpeechRecognizer.recording ? "#FF5722" : "#FFB300" // Адаптировано под оранжевую тему
+            opacity: (SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing) ? 1.0 : 0.4
+            visible: !SpeechRecognizer.finalizing
+
+            IconButton {
+                anchors.centerIn: parent
+                icon.source: SpeechRecognizer.recording ? "image://theme/icon-m-stop" : "image://theme/icon-m-mic"
+                icon.width: Theme.iconSizeLarge
+                icon.height: Theme.iconSizeLarge
+                width: parent.width
+                height: parent.height
+                enabled: SpeechRecognizer.modelReady && !SpeechRecognizer.finalizing
+                onClicked: {
+                    if (SpeechRecognizer.recording) {
+                        SpeechRecognizer.stop()
+                    } else {
+                        SpeechRecognizer.start()
+                    }
+                }
+            }
+        }
     }
 
     Notification {
